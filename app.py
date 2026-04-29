@@ -37,25 +37,24 @@ st.markdown("""
     }
     
     /* --- Top Header & Toolbar --- */
-    header, .stApp > header, 
-    [data-testid="stHeader"], 
-    [data-testid="stToolbar"],
-    div[data-testid="stHeader"], 
-    div[data-testid="stToolbar"] {
+    [data-testid="stHeader"] {
         background-color: #ffffff !important;
-        color: #222222 !important;
     }
     
-    [data-testid="stDecoration"],
-    div[data-testid="stDecoration"] {
-        background-color: transparent !important;
-        background-image: none !important;
-    }
-    
-    div[data-testid="stStatusWidget"],
-    .viewerBadge_container__*,
-    .stDeployButton {
+    /* Make toolbar icons and text dark */
+    [data-testid="stToolbar"] button,
+    [data-testid="stStatusWidget"] label {
         color: #333333 !important;
+    }
+    [data-testid="stToolbar"] svg,
+    [data-testid="stStatusWidget"] svg {
+        fill: #333333 !important;
+        stroke: #333333 !important;
+    }
+    
+    /* Remove the colorful top decoration line */
+    [data-testid="stDecoration"] {
+        background-image: none !important;
         background-color: transparent !important;
     }
     
