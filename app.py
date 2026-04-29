@@ -133,13 +133,27 @@ def main():
                     st.stop()
                 
                 # For ML Predictors tab, we'll use the target PRS results (since validation was used to fit the combined PRS)
-                # But ML predictors might need a phenotype for the target set (if training more models). 
-                # If target phenotype is provided (in val_pheno or generated mock), we use it.
+                # Merge phenotype by Sample_ID to ensure correct alignment
                 if val_pheno_path:
                     try:
                         pheno_df = pd.read_csv(val_pheno_path, sep='\s+|,', engine='python')
-                        st.session_state.phenotype = pheno_df.iloc[:, -1].values
-                    except:
+                        # Phenotype file: FID IID PHENO or just IID PHENO
+                        if len(pheno_df.columns) >= 3:
+                            pheno_df = pheno_df.iloc[:, [1, -1]]  # IID + last col
+                        else:
+                            pheno_df = pheno_df.iloc[:, [0, -1]]  # IID + last col
+                        pheno_df.columns = ['Sample_ID', 'PHENO']
+                        
+                        # Merge with PRS results
+                        merged = pd.merge(prs_df, pheno_df, on='Sample_ID', how='inner')
+                        if len(merged) > 0:
+                            st.session_state.phenotype = merged['PHENO'].values
+                            prs_df = merged.drop(columns=['PHENO'])
+                        else:
+                            st.warning("⚠️ No matching IIDs between PRS results and phenotype. Using mock phenotype.")
+                            st.session_state.phenotype = generate_mock_phenotype(n_samples=len(prs_df), binary=config["is_binary"])
+                    except Exception as e:
+                        st.warning(f"⚠️ Error reading phenotype: {e}. Using mock phenotype.")
                         st.session_state.phenotype = generate_mock_phenotype(n_samples=len(prs_df), binary=config["is_binary"])
                 else:
                     st.session_state.phenotype = generate_mock_phenotype(n_samples=len(prs_df), binary=config["is_binary"])
@@ -154,7 +168,9 @@ def main():
                 # Run ML Models if selected
                 if config["selected_ml"]:
                     st.toast("Training ML Models...")
-                    X = prs_df[config["selected_methods"]]
+                    # Use actual PRS score columns (not method names)
+                    score_cols = [c for c in prs_df.columns if c != 'Sample_ID']
+                    X = prs_df[score_cols]
                     y = st.session_state.phenotype
                     ml_df, _ = train_ml_models(X, y, config["selected_ml"], is_binary=config["is_binary"])
                     st.session_state.ml_results = ml_df
