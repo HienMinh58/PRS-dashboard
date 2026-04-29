@@ -12,16 +12,168 @@ from src.utils import generate_mock_phenotype, export_to_csv, export_to_excel, c
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="PRS Dashboard - Multi & Single Ancestry + ML Predictors",
-    page_icon="🧬",
+    page_title="PRS Dashboard",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
+# --- Custom CSS: Clean light theme ---
+st.markdown("""
+<style>
+    /* --- Import professional font --- */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    /* --- Global --- */
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #333333;
+    }
+    .main .block-container {
+        padding-top: 1.5rem;
+        padding-bottom: 2rem;
+        max-width: 1200px;
+    }
+
+    /* --- Sidebar --- */
+    [data-testid="stSidebar"] {
+        background-color: #f7f7f7;
+        border-right: 1px solid #e0e0e0;
+    }
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stSidebar"] label {
+        font-size: 0.88rem;
+        color: #444444;
+    }
+
+    /* --- Headers --- */
+    h1 {
+        font-size: 1.6rem !important;
+        font-weight: 700 !important;
+        color: #1a1a1a !important;
+        padding-bottom: 0.3rem !important;
+        border-bottom: 2px solid #4a86c8 !important;
+        margin-bottom: 1rem !important;
+    }
+    h2 {
+        font-size: 1.25rem !important;
+        font-weight: 600 !important;
+        color: #2c2c2c !important;
+        margin-top: 0.8rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    h3 {
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        color: #3a3a3a !important;
+    }
+
+    /* --- Primary buttons: muted blue --- */
+    .stButton > button[kind="primary"],
+    .stButton > button[data-testid="stBaseButton-primary"] {
+        background-color: #4a86c8 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 4px !important;
+        font-weight: 500 !important;
+        font-size: 0.88rem !important;
+        padding: 0.45rem 1.2rem !important;
+        transition: background-color 0.2s ease !important;
+    }
+    .stButton > button[kind="primary"]:hover,
+    .stButton > button[data-testid="stBaseButton-primary"]:hover {
+        background-color: #3a6fa8 !important;
+    }
+
+    /* --- Secondary buttons --- */
+    .stButton > button:not([kind="primary"]):not([data-testid="stBaseButton-primary"]) {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border: 1px solid #cccccc !important;
+        border-radius: 4px !important;
+        font-size: 0.85rem !important;
+    }
+    .stDownloadButton > button {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border: 1px solid #cccccc !important;
+        border-radius: 4px !important;
+        font-size: 0.85rem !important;
+    }
+    .stDownloadButton > button:hover {
+        background-color: #f0f0f0 !important;
+        border-color: #999999 !important;
+    }
+
+    /* --- Tabs --- */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0px;
+        border-bottom: 1px solid #ddd;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent !important;
+        border: none !important;
+        border-bottom: 2px solid transparent !important;
+        color: #666666 !important;
+        font-size: 0.88rem !important;
+        font-weight: 500 !important;
+        padding: 0.5rem 1rem !important;
+    }
+    .stTabs [aria-selected="true"] {
+        border-bottom: 2px solid #4a86c8 !important;
+        color: #1a1a1a !important;
+    }
+
+    /* --- Alerts / Info boxes --- */
+    .stAlert {
+        border-radius: 4px !important;
+        font-size: 0.88rem !important;
+        border-left-width: 4px !important;
+    }
+
+    /* --- File uploader --- */
+    [data-testid="stFileUploader"] {
+        border: 1px dashed #cccccc !important;
+        border-radius: 4px !important;
+        padding: 0.5rem !important;
+    }
+
+    /* --- Dataframe --- */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 4px !important;
+    }
+
+    /* --- Divider --- */
+    hr {
+        border-top: 1px solid #e8e8e8 !important;
+        margin: 1rem 0 !important;
+    }
+
+    /* --- Radio buttons --- */
+    .stRadio > div {
+        gap: 0.5rem;
+    }
+
+    /* --- Expander --- */
+    [data-testid="stExpander"] {
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 4px !important;
+    }
+
+    /* --- Caption text --- */
+    .stCaption, [data-testid="stCaptionContainer"] {
+        color: #888888 !important;
+        font-size: 0.8rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
 # --- Main Application Logic ---
 def main():
-    st.title("🧬 PRS Dashboard - Multi & Single Ancestry + ML Predictors")
-    st.markdown("A complete platform for polygenic risk score calculation, multi-ancestry integration, and machine learning prediction.")
+    st.title("PRS Dashboard — Multi & Single Ancestry + ML Predictors")
+    st.caption("A platform for polygenic risk score calculation, multi-ancestry integration, and machine learning prediction.")
     
     # Render Sidebar and get configs
     config = render_sidebar()
@@ -37,22 +189,22 @@ def main():
     # ================================================================
     # SECTION 1: PRS Calculation
     # ================================================================
-    st.header("📊 PRS Calculation")
+    st.header("PRS Calculation")
     
     col_prs_btn, col_prs_status = st.columns([1, 3])
     with col_prs_btn:
-        run_prs_btn = st.button("🧬 Run PRS Calculation", type="primary", use_container_width=True)
+        run_prs_btn = st.button("Run PRS Calculation", type="primary", use_container_width=True)
     with col_prs_status:
         if st.session_state.prs_results is not None:
             n_samples = len(st.session_state.prs_results)
             n_scores = len([c for c in st.session_state.prs_results.columns if c != 'Sample_ID'])
-            st.success(f"✅ PRS results available: {n_samples} samples, {n_scores} score column(s)")
+            st.success(f"PRS results available: {n_samples} samples, {n_scores} score column(s)")
         else:
-            st.info("No PRS results yet. Upload data and click 'Run PRS Calculation'.")
+            st.info("No PRS results yet. Upload data and click Run PRS Calculation.")
 
     if run_prs_btn:
         if not config["selected_methods"]:
-            st.warning("⚠️ Please select at least one PRS method from the sidebar.")
+            st.warning("Please select at least one PRS method from the sidebar.")
         else:
             with st.spinner("Processing Genotypes and Calculating PRS..."):
                 import os
@@ -74,7 +226,7 @@ def main():
                         gwas_pops.append(info["pop"])
                         gwas_ns.append(str(info["n_gwas"]))
                 else:
-                    st.error("❌ Please upload at least one GWAS summary statistics file.")
+                    st.error("Please upload at least one GWAS summary statistics file.")
                     st.stop()
                 
                 # --- Validate and save target genotype ---
@@ -82,7 +234,7 @@ def main():
                 if config["target_data"] is not None and config["target_data"] != []:
                     exts = [f.name.split('.')[-1] for f in config["target_data"]]
                     if not all(ext in exts for ext in ['bed', 'bim', 'fam']):
-                        st.error("❌ Please upload all three PLINK binary files: .bed, .bim, .fam")
+                        st.error("Please upload all three PLINK binary files: .bed, .bim, .fam")
                         st.stop()
                     
                     for f in config["target_data"]:
@@ -93,7 +245,7 @@ def main():
                     bed_file = [f.name for f in config["target_data"] if f.name.endswith('.bed')][0]
                     target_prefix = os.path.join(data_dir, bed_file.rsplit('.bed', 1)[0])
                 else:
-                    st.error("❌ Please upload Target Genotype Data (.bed/.bim/.fam).")
+                    st.error("Please upload Target Genotype Data (.bed/.bim/.fam).")
                     st.stop()
                 
                 # --- Validation data (optional) ---
@@ -101,7 +253,7 @@ def main():
                 if config["val_data"] is not None and config["val_data"] != []:
                     exts = [f.name.split('.')[-1] for f in config["val_data"]]
                     if not all(ext in exts for ext in ['bed', 'bim', 'fam']):
-                        st.error("❌ Please upload all three PLINK binary files for validation: .bed, .bim, .fam")
+                        st.error("Please upload all three PLINK binary files for validation: .bed, .bim, .fam")
                         st.stop()
                     for f in config["val_data"]:
                         path = os.path.join(data_dir, "val_" + f.name)
@@ -138,7 +290,7 @@ def main():
                 )
                 
                 if prs_df is None or len(prs_df) == 0:
-                    st.error("🚨 No PRS results were generated. Please check the tool errors above.")
+                    st.error("No PRS results were generated. Please check the tool errors above.")
                     st.stop()
                 
                 if 'Sample_ID' not in prs_df.columns:
@@ -156,17 +308,17 @@ def main():
                 prs_save_path = os.path.join(results_dir, "prs_results.csv")
                 prs_df.to_csv(prs_save_path, index=False)
                 
-            st.success(f"✅ PRS Calculation Complete! {len(prs_df)} samples scored. Results saved to `{prs_save_path}`")
+            st.success(f"PRS Calculation Complete! {len(prs_df)} samples scored. Results saved to `{prs_save_path}`")
             st.rerun()
 
     # ================================================================
     # SECTION 2: ML Prediction
     # ================================================================
     st.divider()
-    st.header("🤖 ML Prediction")
+    st.header("ML Prediction")
     
     # --- PRS Data Source ---
-    st.subheader("📥 PRS Data Source")
+    st.subheader("PRS Data Source")
     prs_source = st.radio(
         "Select PRS data source:",
         options=["From current session", "Upload PRS results CSV"],
@@ -181,19 +333,18 @@ def main():
             ml_prs_df = st.session_state.prs_results.copy()
             n_samples = len(ml_prs_df)
             n_cols = len([c for c in ml_prs_df.columns if c != 'Sample_ID'])
-            st.success(f"✅ Using session PRS results: {n_samples} samples, {n_cols} score column(s)")
+            st.success(f"Using session PRS results: {n_samples} samples, {n_cols} score column(s)")
         else:
-            st.warning("⚠️ No PRS results in current session. Please run PRS Calculation first or upload a PRS results CSV.")
+            st.warning("No PRS results in current session. Please run PRS Calculation first or upload a PRS results CSV.")
     else:
         prs_csv_file = st.file_uploader(
-            "📄 Upload PRS Results CSV",
+            "Upload PRS Results CSV",
             type=["csv", "tsv", "txt"],
             help="CSV file with columns: Sample_ID (or IID) and one or more PRS score columns (e.g., PRS_CSx_EUR, PRS_CSx_AFR, PRS_CSx_combined).",
             key="ml_prs_csv_upload"
         )
         if prs_csv_file is not None:
             try:
-                # Try comma first, then whitespace
                 ml_prs_df = pd.read_csv(prs_csv_file, sep=None, engine='python')
                 
                 # Normalize ID column name
@@ -209,23 +360,23 @@ def main():
                         ml_prs_df = ml_prs_df.drop(columns=[col], errors='ignore')
                 
                 if 'Sample_ID' not in ml_prs_df.columns:
-                    st.error("❌ PRS file must contain a 'Sample_ID' or 'IID' column.")
+                    st.error("PRS file must contain a 'Sample_ID' or 'IID' column.")
                     ml_prs_df = None
                 else:
-                    st.success(f"✅ Loaded PRS CSV: {len(ml_prs_df)} samples, columns: {list(ml_prs_df.columns)}")
+                    st.success(f"Loaded PRS CSV: {len(ml_prs_df)} samples, columns: {list(ml_prs_df.columns)}")
             except Exception as e:
-                st.error(f"❌ Error reading PRS CSV: {e}")
+                st.error(f"Error reading PRS CSV: {e}")
                 ml_prs_df = None
     
     if ml_prs_df is not None:
         st.divider()
         
         # --- Phenotype Upload ---
-        st.subheader("🏥 Phenotype Data")
+        st.subheader("Phenotype Data")
         ml_col1, ml_col2 = st.columns(2)
         with ml_col1:
             ml_pheno_file = st.file_uploader(
-                "📄 Upload Phenotype File",
+                "Upload Phenotype File",
                 type=["csv", "tsv", "txt", "pheno"],
                 help="File with columns: FID IID Phenotype (or IID Phenotype). Required for ML evaluation.",
                 key="ml_pheno_upload"
@@ -237,17 +388,17 @@ def main():
                 key="ml_binary_check"
             )
             use_demo_mode = st.checkbox(
-                "🧪 Demo mode (use random phenotype)",
+                "Demo mode (use random phenotype)",
                 value=False,
                 help="Generates a random phenotype for testing only. Results will NOT be scientifically meaningful."
             )
         
         # --- Feature Column Selection ---
-        st.subheader("🎯 Feature Selection")
+        st.subheader("Feature Selection")
         all_score_cols = [c for c in ml_prs_df.columns if c not in ['Sample_ID', 'IID', 'FID']]
         
         if len(all_score_cols) == 0:
-            st.error("❌ No PRS score columns found in the data. Ensure your file has numeric score columns.")
+            st.error("No PRS score columns found in the data. Ensure your file has numeric score columns.")
         else:
             selected_features = st.multiselect(
                 "Select PRS columns to use as ML features:",
@@ -257,7 +408,7 @@ def main():
             )
             
             if not selected_features:
-                st.warning("⚠️ Please select at least one PRS feature column.")
+                st.warning("Please select at least one PRS feature column.")
             
             st.caption(f"Selected {len(selected_features)} of {len(all_score_cols)} available feature(s)")
             
@@ -265,14 +416,14 @@ def main():
             selected_ml = config["selected_ml"]
             
             # --- Run ML Button ---
-            run_ml_btn = st.button("🚀 Run ML Prediction", type="primary", use_container_width=False)
+            run_ml_btn = st.button("Run ML Prediction", type="primary", use_container_width=False)
             
             if run_ml_btn:
                 if not selected_features:
-                    st.error("❌ Please select at least one PRS feature column.")
+                    st.error("Please select at least one PRS feature column.")
                     st.stop()
                 if not selected_ml:
-                    st.error("❌ No ML models selected. Please select at least one model from the sidebar.")
+                    st.error("No ML models selected. Please select at least one model from the sidebar.")
                     st.stop()
                 
                 prs_df = ml_prs_df.copy()
@@ -295,19 +446,19 @@ def main():
                         if len(merged) > 0:
                             phenotype = merged['PHENO'].values
                             prs_df = merged.drop(columns=['PHENO'])
-                            st.info(f"📊 Merged {len(merged)} samples with phenotype data.")
+                            st.info(f"Merged {len(merged)} samples with phenotype data.")
                         else:
-                            st.error("❌ No matching Sample IDs between PRS results and phenotype file! Check that IDs match.")
+                            st.error("No matching Sample IDs between PRS results and phenotype file. Check that IDs match.")
                             st.stop()
                     except Exception as e:
-                        st.error(f"❌ Error reading phenotype file: {e}")
+                        st.error(f"Error reading phenotype file: {e}")
                         st.stop()
                         
                 elif use_demo_mode:
                     phenotype = generate_mock_phenotype(n_samples=len(prs_df), binary=ml_is_binary)
-                    st.warning("🧪 **Demo Mode**: Using randomly generated phenotype. Results are for testing only!")
+                    st.warning("**Demo Mode**: Using randomly generated phenotype. Results are for testing only.")
                 else:
-                    st.error("❌ Please upload a Phenotype File or enable Demo Mode to proceed.")
+                    st.error("Please upload a Phenotype File or enable Demo Mode to proceed.")
                     st.stop()
                 
                 # --- Train ML models ---
@@ -327,7 +478,7 @@ def main():
                     ml_save_path = os.path.join(results_dir, "ml_results.csv")
                     ml_df.to_csv(ml_save_path)
                     
-                st.success(f"✅ ML Training Complete! Results saved to `{ml_save_path}`")
+                st.success(f"ML Training Complete. Results saved to `{ml_save_path}`")
                 st.rerun()
 
     # ================================================================
@@ -371,9 +522,9 @@ def main():
             st.dataframe(st.session_state.ml_results)
             st.markdown("Models are trained using the PRS score columns as features.")
         elif st.session_state.prs_results is not None:
-            st.info("🤖 PRS results are ready. Upload a phenotype file and click 'Run ML Prediction' above to train ML models.")
+            st.info("PRS results are ready. Upload a phenotype file and click 'Run ML Prediction' above to train ML models.")
         else:
-            st.info("📋 Please run PRS Calculation first, then use 'Run ML Prediction' to train models.")
+            st.info("Please run PRS Calculation first, then use 'Run ML Prediction' to train models.")
 
     with tab4:
         st.header("Comparison & Visualization")
@@ -395,7 +546,7 @@ def main():
                 fig_corr.update_layout(margin=dict(l=0, r=0, t=30, b=0))
                 st.plotly_chart(fig_corr, use_container_width=True)
                 
-            st.subheader("PRS vs Phenotype (Scatter Plot)")
+            st.subheader("PRS vs Phenotype")
             if st.session_state.phenotype is not None and len(prs_cols) > 0:
                 selected_prs_plot = st.selectbox("Select PRS Method for Scatter Plot", prs_cols)
                 plot_df = pd.DataFrame({
@@ -421,7 +572,7 @@ def main():
             with col_c:
                 csv_data = export_to_csv(st.session_state.prs_results)
                 st.download_button(
-                    label="📥 Download PRS as CSV",
+                    label="Download PRS as CSV",
                     data=csv_data,
                     file_name="prs_results.csv",
                     mime="text/csv",
@@ -430,7 +581,7 @@ def main():
             with col_d:
                 excel_data = export_to_excel(st.session_state.prs_results)
                 st.download_button(
-                    label="📥 Download PRS as Excel",
+                    label="Download PRS as Excel",
                     data=excel_data,
                     file_name="prs_results.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -444,7 +595,7 @@ def main():
                 st.dataframe(st.session_state.ml_results)
                 ml_csv = export_to_csv(st.session_state.ml_results)
                 st.download_button(
-                    label="📥 Download ML Results as CSV",
+                    label="Download ML Results as CSV",
                     data=ml_csv,
                     file_name="ml_results.csv",
                     mime="text/csv",

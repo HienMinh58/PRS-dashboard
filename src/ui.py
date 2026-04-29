@@ -2,7 +2,7 @@ import streamlit as st
 
 def render_sidebar():
     """Renders the sidebar and returns user configurations."""
-    st.sidebar.title("🧬 PRS Configuration")
+    st.sidebar.title("PRS Configuration")
     
     # 1. Mode Selector
     mode = st.sidebar.radio(
@@ -14,7 +14,7 @@ def render_sidebar():
     st.sidebar.divider()
     
     # 2. File Uploads
-    st.sidebar.subheader("📁 Input Data")
+    st.sidebar.subheader("Input Data")
     gwas_files = st.sidebar.file_uploader(
         "Upload GWAS Summary Statistics", 
         accept_multiple_files=True if mode == "Multi Ancestry" else False,
@@ -32,7 +32,7 @@ def render_sidebar():
                 
     st.sidebar.divider()
     
-    st.sidebar.subheader("🎯 Target Data (Testing)")
+    st.sidebar.subheader("Target Data (Testing)")
     target_data = st.sidebar.file_uploader(
         "Upload Target Genotype Data (.bed/.bim/.fam)", 
         accept_multiple_files=True,
@@ -41,7 +41,7 @@ def render_sidebar():
     
     st.sidebar.divider()
     
-    st.sidebar.subheader("⚖️ Validation Data (Optional, for combined PRS)")
+    st.sidebar.subheader("Validation Data (Optional)")
     val_data = st.sidebar.file_uploader(
         "Upload Validation Genotype Data (.bed/.bim/.fam)", 
         accept_multiple_files=True,
@@ -59,7 +59,7 @@ def render_sidebar():
     st.sidebar.divider()
     
     # 3. Ancestry Selection
-    st.sidebar.subheader("🌍 Ancestry")
+    st.sidebar.subheader("Ancestry")
     ancestry_options = ["EUR", "AFR", "EAS", "SAS", "AMR", "Mixed"]
     if mode == "Single Ancestry":
         ancestry = st.sidebar.selectbox("Select Target Ancestry", ancestry_options)
@@ -69,7 +69,7 @@ def render_sidebar():
     st.sidebar.divider()
     
     # 4. PRS Methods Selection
-    st.sidebar.subheader("🧮 PRS Methods")
+    st.sidebar.subheader("PRS Methods")
     available_methods = ["PRS-CSx", "TL-PRS", "CT-SLEB", "PROSPER", "ME-BAYES SL"]
     selected_methods = st.sidebar.multiselect(
         "Select Methods to Run",
@@ -80,7 +80,7 @@ def render_sidebar():
     # 5. Hyperparameters
     params = {}
     if selected_methods:
-        with st.sidebar.expander("⚙️ Advanced Hyperparameters"):
+        with st.sidebar.expander("Advanced Hyperparameters"):
             for method in selected_methods:
                 st.markdown(f"**{method}**")
                 if method == "PRS-CSx":
@@ -109,7 +109,7 @@ def render_sidebar():
     st.sidebar.divider()
     
     # 6. ML Predictors
-    st.sidebar.subheader("🤖 ML Predictors")
+    st.sidebar.subheader("ML Predictors")
     available_ml = ["SVM", "GLM", "Random Forest"]
     selected_ml = st.sidebar.multiselect("Select Models to Train", available_ml, default=["GLM"])
     
