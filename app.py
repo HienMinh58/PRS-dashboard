@@ -150,7 +150,13 @@ def main():
                 st.session_state.ml_results = None
                 st.session_state.phenotype = None
                 
-            st.success(f"✅ PRS Calculation Complete! {len(prs_df)} samples scored.")
+                # Auto-save PRS results to disk for later re-use
+                results_dir = "/app/results" if os.path.exists("/app") else "./results"
+                os.makedirs(results_dir, exist_ok=True)
+                prs_save_path = os.path.join(results_dir, "prs_results.csv")
+                prs_df.to_csv(prs_save_path, index=False)
+                
+            st.success(f"✅ PRS Calculation Complete! {len(prs_df)} samples scored. Results saved to `{prs_save_path}`")
             st.rerun()
 
     # ================================================================
@@ -159,15 +165,69 @@ def main():
     st.divider()
     st.header("🤖 ML Prediction")
     
-    if st.session_state.prs_results is None:
-        st.warning("⚠️ Please run PRS Calculation first before training ML models.")
+    # --- PRS Data Source ---
+    st.subheader("📥 PRS Data Source")
+    prs_source = st.radio(
+        "Select PRS data source:",
+        options=["From current session", "Upload PRS results CSV"],
+        horizontal=True,
+        help="Use PRS scores from the calculation above, or upload a previously saved PRS results file."
+    )
+    
+    ml_prs_df = None
+    
+    if prs_source == "From current session":
+        if st.session_state.prs_results is not None:
+            ml_prs_df = st.session_state.prs_results.copy()
+            n_samples = len(ml_prs_df)
+            n_cols = len([c for c in ml_prs_df.columns if c != 'Sample_ID'])
+            st.success(f"✅ Using session PRS results: {n_samples} samples, {n_cols} score column(s)")
+        else:
+            st.warning("⚠️ No PRS results in current session. Please run PRS Calculation first or upload a PRS results CSV.")
     else:
-        # Phenotype upload for ML (in main area, not sidebar)
+        prs_csv_file = st.file_uploader(
+            "📄 Upload PRS Results CSV",
+            type=["csv", "tsv", "txt"],
+            help="CSV file with columns: Sample_ID (or IID) and one or more PRS score columns (e.g., PRS_CSx_EUR, PRS_CSx_AFR, PRS_CSx_combined).",
+            key="ml_prs_csv_upload"
+        )
+        if prs_csv_file is not None:
+            try:
+                # Try comma first, then whitespace
+                ml_prs_df = pd.read_csv(prs_csv_file, sep=None, engine='python')
+                
+                # Normalize ID column name
+                if 'IID' in ml_prs_df.columns and 'Sample_ID' not in ml_prs_df.columns:
+                    ml_prs_df = ml_prs_df.rename(columns={'IID': 'Sample_ID'})
+                if '#FID' in ml_prs_df.columns:
+                    ml_prs_df = ml_prs_df.drop(columns=['#FID'], errors='ignore')
+                
+                # Drop non-score columns that are common in PLINK output
+                drop_cols = ['FID', 'PHENO1', 'ALLELE_CT', 'NAMED_ALLELE_DOSAGE_SUM', 'SCORE1_AVG']
+                for col in drop_cols:
+                    if col in ml_prs_df.columns and col != 'Sample_ID':
+                        ml_prs_df = ml_prs_df.drop(columns=[col], errors='ignore')
+                
+                if 'Sample_ID' not in ml_prs_df.columns:
+                    st.error("❌ PRS file must contain a 'Sample_ID' or 'IID' column.")
+                    ml_prs_df = None
+                else:
+                    st.success(f"✅ Loaded PRS CSV: {len(ml_prs_df)} samples, columns: {list(ml_prs_df.columns)}")
+            except Exception as e:
+                st.error(f"❌ Error reading PRS CSV: {e}")
+                ml_prs_df = None
+    
+    if ml_prs_df is not None:
+        st.divider()
+        
+        # --- Phenotype Upload ---
+        st.subheader("🏥 Phenotype Data")
         ml_col1, ml_col2 = st.columns(2)
         with ml_col1:
             ml_pheno_file = st.file_uploader(
-                "📄 Upload Phenotype File for ML Training",
-                help="File with columns: FID IID Phenotype (or IID Phenotype). Required for real ML evaluation.",
+                "📄 Upload Phenotype File",
+                type=["csv", "tsv", "txt", "pheno"],
+                help="File with columns: FID IID Phenotype (or IID Phenotype). Required for ML evaluation.",
                 key="ml_pheno_upload"
             )
         with ml_col2:
@@ -179,67 +239,96 @@ def main():
             use_demo_mode = st.checkbox(
                 "🧪 Demo mode (use random phenotype)",
                 value=False,
-                help="If enabled, generates a random phenotype for testing purposes only. Results will NOT be scientifically meaningful."
+                help="Generates a random phenotype for testing only. Results will NOT be scientifically meaningful."
             )
         
-        # Show current PRS columns available
-        score_cols = [c for c in st.session_state.prs_results.columns if c != 'Sample_ID']
-        st.caption(f"Available PRS features for ML: `{', '.join(score_cols)}`")
+        # --- Feature Column Selection ---
+        st.subheader("🎯 Feature Selection")
+        all_score_cols = [c for c in ml_prs_df.columns if c not in ['Sample_ID', 'IID', 'FID']]
         
-        run_ml_btn = st.button("🚀 Run ML Prediction", type="primary", use_container_width=False)
-        
-        if run_ml_btn:
-            prs_df = st.session_state.prs_results.copy()
-            phenotype = None
+        if len(all_score_cols) == 0:
+            st.error("❌ No PRS score columns found in the data. Ensure your file has numeric score columns.")
+        else:
+            selected_features = st.multiselect(
+                "Select PRS columns to use as ML features:",
+                options=all_score_cols,
+                default=all_score_cols,
+                help="Choose which PRS score columns to include as input features for ML training."
+            )
             
-            # --- Load phenotype ---
-            if ml_pheno_file is not None:
-                try:
-                    pheno_df = pd.read_csv(ml_pheno_file, sep='\s+|,', engine='python')
-                    # Phenotype file: FID IID PHENO or just IID PHENO
-                    if len(pheno_df.columns) >= 3:
-                        pheno_df = pheno_df.iloc[:, [1, -1]]  # IID + last col
-                    else:
-                        pheno_df = pheno_df.iloc[:, [0, -1]]  # IID + last col
-                    pheno_df.columns = ['Sample_ID', 'PHENO']
-                    
-                    # Merge with PRS results
-                    merged = pd.merge(prs_df, pheno_df, on='Sample_ID', how='inner')
-                    if len(merged) > 0:
-                        phenotype = merged['PHENO'].values
-                        prs_df = merged.drop(columns=['PHENO'])
-                        st.info(f"📊 Merged {len(merged)} samples with phenotype data.")
-                    else:
-                        st.error("❌ No matching Sample IDs between PRS results and phenotype file!")
-                        st.stop()
-                except Exception as e:
-                    st.error(f"❌ Error reading phenotype file: {e}")
+            if not selected_features:
+                st.warning("⚠️ Please select at least one PRS feature column.")
+            
+            st.caption(f"Selected {len(selected_features)} of {len(all_score_cols)} available feature(s)")
+            
+            # --- ML Model Selection ---
+            selected_ml = config["selected_ml"]
+            
+            # --- Run ML Button ---
+            run_ml_btn = st.button("🚀 Run ML Prediction", type="primary", use_container_width=False)
+            
+            if run_ml_btn:
+                if not selected_features:
+                    st.error("❌ Please select at least one PRS feature column.")
                     st.stop()
-                    
-            elif use_demo_mode:
-                phenotype = generate_mock_phenotype(n_samples=len(prs_df), binary=ml_is_binary)
-                st.warning("🧪 **Demo Mode**: Using randomly generated phenotype. Results are for testing only!")
-            else:
-                st.error("❌ Please upload a Phenotype File or enable Demo Mode to proceed.")
-                st.stop()
-            
-            # --- Train ML models ---
-            with st.spinner("Training ML Models..."):
-                X = prs_df[score_cols]
-                y = phenotype
-                
-                selected_ml = config["selected_ml"]
                 if not selected_ml:
-                    st.warning("⚠️ No ML models selected. Please select at least one model from the sidebar.")
+                    st.error("❌ No ML models selected. Please select at least one model from the sidebar.")
                     st.stop()
                 
-                ml_df, predictions = train_ml_models(X, y, selected_ml, is_binary=ml_is_binary)
+                prs_df = ml_prs_df.copy()
+                phenotype = None
                 
-                st.session_state.ml_results = ml_df
-                st.session_state.phenotype = phenotype
+                # --- Load and merge phenotype ---
+                if ml_pheno_file is not None:
+                    try:
+                        pheno_df = pd.read_csv(ml_pheno_file, sep=None, engine='python')
+                        
+                        # Normalize: extract IID and phenotype columns
+                        if len(pheno_df.columns) >= 3:
+                            pheno_df = pheno_df.iloc[:, [1, -1]]  # IID + last col
+                        else:
+                            pheno_df = pheno_df.iloc[:, [0, -1]]  # IID + last col
+                        pheno_df.columns = ['Sample_ID', 'PHENO']
+                        
+                        # Merge with PRS results by Sample_ID
+                        merged = pd.merge(prs_df, pheno_df, on='Sample_ID', how='inner')
+                        if len(merged) > 0:
+                            phenotype = merged['PHENO'].values
+                            prs_df = merged.drop(columns=['PHENO'])
+                            st.info(f"📊 Merged {len(merged)} samples with phenotype data.")
+                        else:
+                            st.error("❌ No matching Sample IDs between PRS results and phenotype file! Check that IDs match.")
+                            st.stop()
+                    except Exception as e:
+                        st.error(f"❌ Error reading phenotype file: {e}")
+                        st.stop()
+                        
+                elif use_demo_mode:
+                    phenotype = generate_mock_phenotype(n_samples=len(prs_df), binary=ml_is_binary)
+                    st.warning("🧪 **Demo Mode**: Using randomly generated phenotype. Results are for testing only!")
+                else:
+                    st.error("❌ Please upload a Phenotype File or enable Demo Mode to proceed.")
+                    st.stop()
                 
-            st.success("✅ ML Training Complete!")
-            st.rerun()
+                # --- Train ML models ---
+                with st.spinner("Training ML Models..."):
+                    X = prs_df[selected_features]
+                    y = phenotype
+                    
+                    ml_df, predictions = train_ml_models(X, y, selected_ml, is_binary=ml_is_binary)
+                    
+                    st.session_state.ml_results = ml_df
+                    st.session_state.phenotype = phenotype
+                    
+                    # Auto-save ML results to disk
+                    import os
+                    results_dir = "/app/results" if os.path.exists("/app") else "./results"
+                    os.makedirs(results_dir, exist_ok=True)
+                    ml_save_path = os.path.join(results_dir, "ml_results.csv")
+                    ml_df.to_csv(ml_save_path)
+                    
+                st.success(f"✅ ML Training Complete! Results saved to `{ml_save_path}`")
+                st.rerun()
 
     # ================================================================
     # TABS: Results Display
