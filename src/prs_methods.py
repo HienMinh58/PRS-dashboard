@@ -51,12 +51,32 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
         "--chrom=1"  # Hardcoded for fast testing (Toy data only has Chr 1)
     ]
     
-    # Fail loudly if PRS-CSx fails
+    # Execute with live logs
     try:
-        res = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        st.info(f"PRS-CSx stdout:\n{res.stdout[-2000:]}")
-    except subprocess.CalledProcessError as e:
-        st.error(f"PRS-CSx failed! stdout:\n{e.stdout}\nstderr:\n{e.stderr}")
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
+        )
+        
+        log_placeholder = st.empty()
+        full_log = ""
+        
+        for line in process.stdout:
+            full_log += line
+            # Keep only the last 20 lines to avoid UI lag
+            display_log = "\n".join(full_log.splitlines()[-20:])
+            log_placeholder.code(display_log)
+            
+        process.wait()
+        if process.returncode != 0:
+             raise subprocess.CalledProcessError(process.returncode, cmd, output=full_log)
+             
+    except Exception as e:
+        st.error(f"PRS-CSx execution failed!")
         raise e
         
     # Helper to score a dataset
