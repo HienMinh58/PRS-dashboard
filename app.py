@@ -36,6 +36,29 @@ st.markdown("""
         color: #333333 !important;
     }
     
+    /* --- Top Header & Toolbar --- */
+    header, .stApp > header, 
+    [data-testid="stHeader"], 
+    [data-testid="stToolbar"],
+    div[data-testid="stHeader"], 
+    div[data-testid="stToolbar"] {
+        background-color: #ffffff !important;
+        color: #222222 !important;
+    }
+    
+    [data-testid="stDecoration"],
+    div[data-testid="stDecoration"] {
+        background-color: transparent !important;
+        background-image: none !important;
+    }
+    
+    div[data-testid="stStatusWidget"],
+    .viewerBadge_container__*,
+    .stDeployButton {
+        color: #333333 !important;
+        background-color: transparent !important;
+    }
+    
     .main .block-container {
         padding-top: 1.5rem;
         padding-bottom: 2rem;
