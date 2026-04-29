@@ -1,0 +1,66 @@
+# Environment variables and secrets
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+secrets.json
+service-account*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+env.bak/
+venv.bak/
+
+# Node
+node_modules/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific data and output directories
+# IMPORTANT: Never commit real genetic data or large reference panels
+data/
+results/
+output/
+logs/
+*.log
+ld_reference/
+
+# Large genetic files (just in case they are outside data/)
+*.bed
+*.bim
+*.fam
+*.vcf
+*.vcf.gz
+*.bcf
+*.pgen
+*.pvar
+*.psam
+*.sumstats
+*.tsv.gz
+*.csv.gz
+*.assoc
+*.pheno
+
+# Sub-repositories (tools cloned locally)
+CTSLEB/
+MEBayesSL/
+TLPRS/
+
+# Docker
+.docker/
+docker-compose.override.yml

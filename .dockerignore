@@ -1,0 +1,6 @@
+ld_reference/
+data/
+results/
+__pycache__/
+*.pyc
+.git/
