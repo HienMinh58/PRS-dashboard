@@ -24,11 +24,18 @@ st.markdown("""
     /* --- Import professional font --- */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    /* --- Global --- */
-    html, body, [class*="css"] {
+    /* --- Global App Backgrounds & Text --- */
+    html, body, [class*="css"], .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        color: #333333;
+        background-color: #ffffff !important;
+        color: #333333 !important;
     }
+    
+    [data-testid="stAppViewContainer"], .main .block-container {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
     .main .block-container {
         padding-top: 1.5rem;
         padding-bottom: 2rem;
@@ -36,43 +43,48 @@ st.markdown("""
     }
 
     /* --- Sidebar --- */
-    [data-testid="stSidebar"] {
-        background-color: #f7f7f7;
-        border-right: 1px solid #e0e0e0;
+    [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+        background-color: #f7f7f7 !important;
+        border-right: 1px solid #e0e0e0 !important;
     }
     [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
-    [data-testid="stSidebar"] label {
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] span {
         font-size: 0.88rem;
-        color: #444444;
+        color: #444444 !important;
     }
 
-    /* --- Headers --- */
+    /* --- Headers & Markdown --- */
+    h1, h2, h3, h4, h5, h6, [data-testid="stMarkdownContainer"] {
+        color: #1a1a1a !important;
+    }
     h1 {
         font-size: 1.6rem !important;
         font-weight: 700 !important;
-        color: #1a1a1a !important;
         padding-bottom: 0.3rem !important;
-        border-bottom: 2px solid #4a86c8 !important;
+        border-bottom: 2px solid #2c7fb8 !important;
         margin-bottom: 1rem !important;
     }
     h2 {
         font-size: 1.25rem !important;
         font-weight: 600 !important;
-        color: #2c2c2c !important;
         margin-top: 0.8rem !important;
         margin-bottom: 0.5rem !important;
     }
     h3 {
         font-size: 1.05rem !important;
         font-weight: 600 !important;
-        color: #3a3a3a !important;
+    }
+    
+    p {
+        color: #333333 !important;
     }
 
     /* --- Primary buttons: muted blue --- */
     .stButton > button[kind="primary"],
     .stButton > button[data-testid="stBaseButton-primary"] {
-        background-color: #4a86c8 !important;
-        color: white !important;
+        background-color: #2c7fb8 !important;
+        color: #ffffff !important;
         border: none !important;
         border-radius: 4px !important;
         font-weight: 500 !important;
@@ -82,17 +94,11 @@ st.markdown("""
     }
     .stButton > button[kind="primary"]:hover,
     .stButton > button[data-testid="stBaseButton-primary"]:hover {
-        background-color: #3a6fa8 !important;
+        background-color: #22628f !important;
     }
 
     /* --- Secondary buttons --- */
-    .stButton > button:not([kind="primary"]):not([data-testid="stBaseButton-primary"]) {
-        background-color: #ffffff !important;
-        color: #333333 !important;
-        border: 1px solid #cccccc !important;
-        border-radius: 4px !important;
-        font-size: 0.85rem !important;
-    }
+    .stButton > button:not([kind="primary"]):not([data-testid="stBaseButton-primary"]),
     .stDownloadButton > button {
         background-color: #ffffff !important;
         color: #333333 !important;
@@ -100,15 +106,71 @@ st.markdown("""
         border-radius: 4px !important;
         font-size: 0.85rem !important;
     }
+    .stButton > button:not([kind="primary"]):hover,
     .stDownloadButton > button:hover {
         background-color: #f0f0f0 !important;
         border-color: #999999 !important;
+    }
+
+    /* --- File uploader --- */
+    [data-testid="stFileUploader"] {
+        background-color: #ffffff !important;
+        border: 1px dashed #b0b0b0 !important;
+        border-radius: 4px !important;
+        padding: 0.5rem !important;
+    }
+    [data-testid="stFileUploader"] section {
+        background-color: #fcfcfc !important;
+    }
+    [data-testid="stFileUploader"] button {
+        background-color: #f0f0f0 !important;
+        color: #2c7fb8 !important;
+        border: 1px solid #cccccc !important;
+    }
+    [data-testid="stFileUploader"] button:hover {
+        background-color: #e0e0e0 !important;
+    }
+    [data-testid="stFileUploader"] small {
+        color: #666666 !important;
+    }
+
+    /* --- Inputs: Text, Selectbox, Multiselect, Checkbox, Radio --- */
+    input, select, textarea, 
+    [data-testid="stSelectbox"] div[data-baseweb="select"],
+    [data-testid="stMultiSelect"] div[data-baseweb="select"] {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border-color: #cccccc !important;
+        border-radius: 4px !important;
+    }
+    
+    /* Multiselect tags */
+    [data-baseweb="tag"] {
+        background-color: #e6f0f9 !important;
+        color: #2c7fb8 !important;
+        border: 1px solid #cce0f0 !important;
+    }
+    [data-baseweb="tag"] span {
+        color: #2c7fb8 !important;
+    }
+
+    /* Radio buttons & Checkboxes */
+    [data-baseweb="radio"] div[data-testid="stMarkdownContainer"] p,
+    [data-baseweb="checkbox"] div[data-testid="stMarkdownContainer"] p {
+        color: #333333 !important;
+    }
+    /* Checked state accents (overriding red/pink) */
+    div[data-baseweb="radio"] > div:first-child > div[data-checked="true"] > div,
+    div[data-baseweb="checkbox"] > div > div[data-checked="true"] {
+        background-color: #2c7fb8 !important;
+        border-color: #2c7fb8 !important;
     }
 
     /* --- Tabs --- */
     .stTabs [data-baseweb="tab-list"] {
         gap: 0px;
         border-bottom: 1px solid #ddd;
+        background-color: transparent !important;
     }
     .stTabs [data-baseweb="tab"] {
         background-color: transparent !important;
@@ -120,28 +182,24 @@ st.markdown("""
         padding: 0.5rem 1rem !important;
     }
     .stTabs [aria-selected="true"] {
-        border-bottom: 2px solid #4a86c8 !important;
+        border-bottom: 2px solid #2c7fb8 !important;
         color: #1a1a1a !important;
     }
 
     /* --- Alerts / Info boxes --- */
-    .stAlert {
+    [data-testid="stAlert"] {
         border-radius: 4px !important;
         font-size: 0.88rem !important;
         border-left-width: 4px !important;
-    }
-
-    /* --- File uploader --- */
-    [data-testid="stFileUploader"] {
-        border: 1px dashed #cccccc !important;
-        border-radius: 4px !important;
-        padding: 0.5rem !important;
+        background-color: #f8f9fa !important;
+        color: #333333 !important;
     }
 
     /* --- Dataframe --- */
     [data-testid="stDataFrame"] {
         border: 1px solid #e0e0e0 !important;
         border-radius: 4px !important;
+        background-color: #ffffff !important;
     }
 
     /* --- Divider --- */
@@ -150,20 +208,20 @@ st.markdown("""
         margin: 1rem 0 !important;
     }
 
-    /* --- Radio buttons --- */
-    .stRadio > div {
-        gap: 0.5rem;
-    }
-
     /* --- Expander --- */
     [data-testid="stExpander"] {
         border: 1px solid #e0e0e0 !important;
         border-radius: 4px !important;
+        background-color: #ffffff !important;
+    }
+    [data-testid="stExpander"] summary p {
+        color: #333333 !important;
+        font-weight: 500 !important;
     }
 
     /* --- Caption text --- */
     .stCaption, [data-testid="stCaptionContainer"] {
-        color: #888888 !important;
+        color: #777777 !important;
         font-size: 0.8rem !important;
     }
 </style>
