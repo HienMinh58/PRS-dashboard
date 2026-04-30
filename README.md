@@ -91,3 +91,11 @@ docker exec -it prs_dashboard /bin/bash
 # Example manual PRS-CSx run
 python /app/tools/PRScsx/PRScsx.py --ref_dir=/app/ld_reference --bim_prefix=/app/data/YOUR_TARGET --sst_file=/app/data/YOUR_GWAS.assoc --n_gwas=100000 --pop=EUR --out_dir=/app/results/prscsx --out_name=test --phi=1e-2 --a=1.0 --chrom=22
 ```
+
+## Current Limitations
+
+- The current version is a functional research prototype and has not been biologically or clinically validated.
+- Current testing was performed using public PRS tutorial data.
+- Some workflows may run chromosome 1 only for faster demonstration unless configured otherwise.
+- Predictive performance metrics should be interpreted as functional testing results, not clinical evidence.
+- Some PRS methods are placeholders or disabled until full real-mode implementations are added.
