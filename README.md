@@ -42,9 +42,13 @@ PRS-dashboard is a comprehensive, production-grade Streamlit web application des
 - [Docker Compose](https://docs.docker.com/compose/install/) available.
 
 ### Required Input Data
-To run the pipeline, you must mount the following local directories containing your data:
-1. **`data/`**: Place your GWAS Summary Statistics (e.g., `GWAS.assoc`) and Target Genotype data (PLINK `.bed`, `.bim`, `.fam` formats) here.
-2. **`ld_reference/`**: Place your large Linkage Disequilibrium (LD) Reference panels (e.g., 1000 Genomes phase 3 HDF5 files for PRS-CSx) here.
+
+**1. GWAS & Genotype Data**
+- **For Normal Users:** You do not need to manually place files in the `data/` directory. You can upload GWAS Summary Statistics, Target Genotype data (PLINK `.bed`, `.bim`, `.fam`), and Phenotype/Covariate files directly through the **Dashboard UI**. Uploaded files are automatically saved to the internal `/app/data` directory where the pipeline processes them.
+- **For Developers / Large Datasets:** If your files are too large for the Streamlit file uploader, or if you are running local development tests, you can manually place them in the local `data/` directory. This directory is mounted to `/app/data` inside the Docker container.
+
+**2. LD Reference Panels**
+- You **must** manually place your large Linkage Disequilibrium (LD) Reference panels (e.g., 1000 Genomes phase 3 HDF5 files for PRS-CSx) in the local `ld_reference/` directory. This directory is mounted to `/app/ld_reference` inside the Docker container. These files are typically too large to be uploaded via the web UI.
 
 > **🔒 Security Note:** Never commit `.env` files, API keys, credentials, real genetic data, GWAS summary stats, or private datasets to version control. These are strictly ignored via `.gitignore`.
 
@@ -56,8 +60,8 @@ To run the pipeline, you must mount the following local directories containing y
    cd PRS-dashboard
    ```
 
-2. **Prepare your data:**
-   Ensure your local `data/` and `ld_reference/` folders are populated with the required files.
+2. **Prepare your reference data:**
+   Ensure your local `ld_reference/` folder contains the required LD reference panels. (GWAS and Genotype data can be uploaded later via the UI).
 
 3. **Build the Docker container:**
    ```bash
