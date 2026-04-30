@@ -267,6 +267,8 @@ def main():
         st.session_state.phenotype = None
     if 'ml_prs_df' not in st.session_state:
         st.session_state.ml_prs_df = None
+    if 'ml_predictions' not in st.session_state:
+        st.session_state.ml_predictions = None
 
     # ================================================================
     # SECTION 1: PRS Calculation
@@ -294,19 +296,36 @@ def main():
                 data_dir = "/app/data" if os.path.exists("/app") else "./data"
                 os.makedirs(data_dir, exist_ok=True)
                 
+                from src.validation import validate_gwas, validate_plink, validate_ld_ref
+                
                 # --- Validate and save GWAS files ---
                 gwas_paths = []
                 gwas_pops = []
                 gwas_ns = []
+                gwas_snps_all = set()
+                
+                st.subheader("Data Validation")
+                validation_passed = True
+                
                 if config["gwas_info"] and len(config["gwas_info"]) > 0:
                     for info in config["gwas_info"]:
                         f = info["file"]
                         path = os.path.join(data_dir, f.name)
                         with open(path, "wb") as out_f:
                             out_f.write(f.getbuffer())
-                        gwas_paths.append(path)
-                        gwas_pops.append(info["pop"])
-                        gwas_ns.append(str(info["n_gwas"]))
+                        
+                        with st.spinner(f"Validating GWAS: {f.name}..."):
+                            is_valid, msg, count, processed_path, snps = validate_gwas(path)
+                        
+                        if is_valid:
+                            st.success(f"GWAS '{f.name}' OK: {msg}")
+                            gwas_paths.append(processed_path)
+                            gwas_pops.append(info["pop"])
+                            gwas_ns.append(str(info["n_gwas"]))
+                            gwas_snps_all.update(snps)
+                        else:
+                            st.error(f"GWAS '{f.name}' Failed: {msg}")
+                            validation_passed = False
                 else:
                     st.error("Please upload at least one GWAS summary statistics file.")
                     st.stop()
@@ -316,33 +335,50 @@ def main():
                 if config["target_data"] is not None and config["target_data"] != []:
                     exts = [f.name.split('.')[-1] for f in config["target_data"]]
                     if not all(ext in exts for ext in ['bed', 'bim', 'fam']):
-                        st.error("Please upload all three PLINK binary files: .bed, .bim, .fam")
-                        st.stop()
-                    
-                    for f in config["target_data"]:
-                        path = os.path.join(data_dir, f.name)
-                        with open(path, "wb") as out_f:
-                            out_f.write(f.getbuffer())
-                    
-                    bed_file = [f.name for f in config["target_data"] if f.name.endswith('.bed')][0]
-                    target_prefix = os.path.join(data_dir, bed_file.rsplit('.bed', 1)[0])
+                        st.error("Target Data: Please upload all three PLINK binary files: .bed, .bim, .fam")
+                        validation_passed = False
+                    else:
+                        for f in config["target_data"]:
+                            path = os.path.join(data_dir, f.name)
+                            with open(path, "wb") as out_f:
+                                out_f.write(f.getbuffer())
+                        
+                        bed_file = [f.name for f in config["target_data"] if f.name.endswith('.bed')][0]
+                        target_prefix = os.path.join(data_dir, bed_file.rsplit('.bed', 1)[0])
+                        
+                        with st.spinner("Validating Target Data..."):
+                            is_valid, msg = validate_plink(target_prefix, gwas_snps_all)
+                        if is_valid:
+                            st.success(msg)
+                        else:
+                            st.error(msg)
+                            validation_passed = False
                 else:
                     st.error("Please upload Target Genotype Data (.bed/.bim/.fam).")
-                    st.stop()
+                    validation_passed = False
                 
                 # --- Validation data (optional) ---
                 val_prefix = None
                 if config["val_data"] is not None and config["val_data"] != []:
                     exts = [f.name.split('.')[-1] for f in config["val_data"]]
                     if not all(ext in exts for ext in ['bed', 'bim', 'fam']):
-                        st.error("Please upload all three PLINK binary files for validation: .bed, .bim, .fam")
-                        st.stop()
-                    for f in config["val_data"]:
-                        path = os.path.join(data_dir, "val_" + f.name)
-                        with open(path, "wb") as out_f:
-                            out_f.write(f.getbuffer())
-                    bed_file = [f.name for f in config["val_data"] if f.name.endswith('.bed')][0]
-                    val_prefix = os.path.join(data_dir, "val_" + bed_file.rsplit('.bed', 1)[0])
+                        st.error("Validation Data: Please upload all three PLINK binary files for validation: .bed, .bim, .fam")
+                        validation_passed = False
+                    else:
+                        for f in config["val_data"]:
+                            path = os.path.join(data_dir, "val_" + f.name)
+                            with open(path, "wb") as out_f:
+                                out_f.write(f.getbuffer())
+                        bed_file = [f.name for f in config["val_data"] if f.name.endswith('.bed')][0]
+                        val_prefix = os.path.join(data_dir, "val_" + bed_file.rsplit('.bed', 1)[0])
+                        
+                        with st.spinner("Validating Validation Data..."):
+                            is_valid, msg = validate_plink(val_prefix, gwas_snps_all)
+                        if is_valid:
+                            st.success(f"Validation Target OK: {msg}")
+                        else:
+                            st.error(f"Validation Target Failed: {msg}")
+                            validation_passed = False
                     
                 val_pheno_path = None
                 if config["val_pheno"]:
@@ -355,6 +391,19 @@ def main():
                     val_covar_path = os.path.join(data_dir, config["val_covar"].name)
                     with open(val_covar_path, "wb") as out_f:
                         out_f.write(config["val_covar"].getbuffer())
+
+                # Check LD Reference
+                if validation_passed:
+                     for pop in gwas_pops:
+                         valid, msg = validate_ld_ref(pop, "1")
+                         if not valid:
+                             st.warning(msg)
+                         else:
+                             st.success(f"LD Ref {pop}: {msg}")
+
+                if not validation_passed:
+                    st.error("Input validation failed. Please fix the errors above and try again.")
+                    st.stop()
 
                 # --- Execute PRS pipeline ---
                 prs_df = execute_prs_pipeline(
@@ -514,27 +563,30 @@ def main():
                 
                 # --- Load and merge phenotype ---
                 if ml_pheno_file is not None:
-                    try:
-                        pheno_df = pd.read_csv(ml_pheno_file, sep=None, engine='python')
+                    from src.validation import validate_phenotype
+                    ml_pheno_file.seek(0)
+                    is_valid, msg, pheno_df = validate_phenotype(ml_pheno_file)
+                    
+                    if not is_valid:
+                        st.error(msg)
+                        st.stop()
                         
-                        # Normalize: extract IID and phenotype columns
-                        if len(pheno_df.columns) >= 3:
-                            pheno_df = pheno_df.iloc[:, [1, -1]]  # IID + last col
-                        else:
-                            pheno_df = pheno_df.iloc[:, [0, -1]]  # IID + last col
-                        pheno_df.columns = ['Sample_ID', 'PHENO']
+                    # Merge with PRS results by Sample_ID
+                    merged = pd.merge(prs_df, pheno_df, on='Sample_ID', how='inner')
+                    
+                    n_prs = len(prs_df)
+                    n_matched = len(merged)
+                    
+                    if n_matched > 0:
+                        phenotype = merged['PHENO'].values
+                        prs_df = merged.drop(columns=['PHENO'])
                         
-                        # Merge with PRS results by Sample_ID
-                        merged = pd.merge(prs_df, pheno_df, on='Sample_ID', how='inner')
-                        if len(merged) > 0:
-                            phenotype = merged['PHENO'].values
-                            prs_df = merged.drop(columns=['PHENO'])
-                            st.info(f"Merged {len(merged)} samples with phenotype data.")
+                        if n_matched < n_prs:
+                            st.warning(f"Only {n_matched} of {n_prs} PRS samples have phenotype values. ML will use {n_matched} matched samples.")
                         else:
-                            st.error("No matching Sample IDs between PRS results and phenotype file. Check that IDs match.")
-                            st.stop()
-                    except Exception as e:
-                        st.error(f"Error reading phenotype file: {e}")
+                            st.info(f"Merged {n_matched} samples with phenotype data.")
+                    else:
+                        st.error("No matching Sample IDs between PRS results and phenotype file. Check that IDs match.")
                         st.stop()
                         
                 elif use_demo_mode:
@@ -548,12 +600,16 @@ def main():
                 with st.spinner("Training ML Models..."):
                     X = prs_df[selected_features]
                     y = phenotype
+                    sample_ids = prs_df['Sample_ID'].values if 'Sample_ID' in prs_df.columns else None
                     
-                    ml_df, predictions = train_ml_models(X, y, selected_ml, is_binary=ml_is_binary)
+                    ml_df, predictions, y_test, test_indices = train_ml_models(X, y, selected_ml, is_binary=ml_is_binary, sample_ids=sample_ids)
                     
                     st.session_state.ml_results = ml_df
                     st.session_state.phenotype = phenotype
                     st.session_state.ml_prs_df = prs_df
+                    st.session_state.ml_predictions = predictions
+                    st.session_state.ml_y_test = y_test
+                    st.session_state.ml_test_indices = test_indices
                     
                     # Auto-save ML results to disk
                     import os
@@ -641,6 +697,21 @@ def main():
                 st.plotly_chart(fig_scatter, use_container_width=True)
             else:
                 st.info("Upload phenotype and run ML Prediction to see PRS vs Phenotype scatter plots.")
+                
+            if hasattr(st.session_state, 'ml_predictions') and st.session_state.ml_predictions is not None:
+                st.subheader("ML Predictions vs True Phenotype (Test Set)")
+                selected_model = st.selectbox("Select ML Model", list(st.session_state.ml_predictions.keys()))
+                
+                y_true = st.session_state.ml_y_test
+                y_pred = st.session_state.ml_predictions[selected_model]
+                
+                plot_ml_df = pd.DataFrame({
+                    'True Phenotype': y_true,
+                    'Predicted Value': y_pred
+                })
+                
+                fig_ml = px.scatter(plot_ml_df, x='True Phenotype', y='Predicted Value', trendline="ols", opacity=0.6)
+                st.plotly_chart(fig_ml, use_container_width=True)
 
         else:
             st.info("Run the PRS Calculation to generate interactive visualizations.")

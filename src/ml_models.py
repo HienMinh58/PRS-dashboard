@@ -6,17 +6,35 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score, roc_auc_score
 
-def train_ml_models(X, y, selected_models, is_binary=False):
+def train_ml_models(X, y, selected_models, is_binary=False, sample_ids=None):
     """
     Trains selected machine learning models using PRS scores as features.
     X: DataFrame of PRS scores
     y: Series/Array of phenotypes
+    sample_ids: Optional array of sample IDs to split alongside X and y
     """
     results = {}
     predictions = {}
     
+    if sample_ids is None:
+        sample_ids = X.index
+        
     # Split data
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    if is_binary:
+        # Check if stratify is possible (need >1 of each class)
+        try:
+            X_train, X_test, y_train, y_test, id_train, id_test = train_test_split(
+                X, y, sample_ids, test_size=0.2, random_state=42, stratify=y
+            )
+        except ValueError:
+            # Fallback if stratify fails due to too few samples of one class
+            X_train, X_test, y_train, y_test, id_train, id_test = train_test_split(
+                X, y, sample_ids, test_size=0.2, random_state=42
+            )
+    else:
+        X_train, X_test, y_train, y_test, id_train, id_test = train_test_split(
+            X, y, sample_ids, test_size=0.2, random_state=42
+        )
     
     # Scale features
     scaler = StandardScaler()
@@ -55,4 +73,4 @@ def train_ml_models(X, y, selected_models, is_binary=False):
         except Exception as e:
             results[model_name] = {"Error": str(e)}
             
-    return pd.DataFrame.from_dict(results, orient='index'), predictions
+    return pd.DataFrame.from_dict(results, orient='index'), predictions, y_test, id_test
