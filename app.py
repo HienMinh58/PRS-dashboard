@@ -265,6 +265,8 @@ def main():
         st.session_state.ml_results = None
     if 'phenotype' not in st.session_state:
         st.session_state.phenotype = None
+    if 'ml_prs_df' not in st.session_state:
+        st.session_state.ml_prs_df = None
 
     # ================================================================
     # SECTION 1: PRS Calculation
@@ -381,6 +383,7 @@ def main():
                 # Reset ML results since PRS data changed
                 st.session_state.ml_results = None
                 st.session_state.phenotype = None
+                st.session_state.ml_prs_df = None
                 
                 # Auto-save PRS results to disk for later re-use
                 results_dir = "/app/results" if os.path.exists("/app") else "./results"
@@ -550,6 +553,7 @@ def main():
                     
                     st.session_state.ml_results = ml_df
                     st.session_state.phenotype = phenotype
+                    st.session_state.ml_prs_df = prs_df
                     
                     # Auto-save ML results to disk
                     import os
@@ -627,11 +631,11 @@ def main():
                 st.plotly_chart(fig_corr, use_container_width=True)
                 
             st.subheader("PRS vs Phenotype")
-            if st.session_state.phenotype is not None and len(prs_cols) > 0:
+            if st.session_state.phenotype is not None and st.session_state.ml_prs_df is not None and len(prs_cols) > 0:
                 selected_prs_plot = st.selectbox("Select PRS Method for Scatter Plot", prs_cols)
                 plot_df = pd.DataFrame({
-                    'PRS Score': st.session_state.prs_results[selected_prs_plot],
-                    'Phenotype': st.session_state.phenotype[:len(st.session_state.prs_results)]
+                    'PRS Score': st.session_state.ml_prs_df[selected_prs_plot].values,
+                    'Phenotype': st.session_state.phenotype
                 })
                 fig_scatter = px.scatter(plot_df, x='PRS Score', y='Phenotype', trendline="ols", opacity=0.6)
                 st.plotly_chart(fig_scatter, use_container_width=True)
