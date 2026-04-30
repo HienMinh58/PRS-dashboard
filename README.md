@@ -1,5 +1,8 @@
 # PRS-dashboard
 
+**Video Demo:** https://github.com/user-attachments/assets/5c0c26ff-106b-4961-8565-99df306ef613
+
+
 ## Overview
 PRS-dashboard is a comprehensive, production-grade Streamlit web application designed for bioinformatics and genomic researchers. It provides an intuitive interface for calculating and visualizing Polygenic Risk Scores (PRS) using state-of-the-art single and multi-ancestry methods, alongside training Machine Learning predictors (SVM, Random Forest, Logistic/Linear Regression) on the resulting genetic risk scores.
 
