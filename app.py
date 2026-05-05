@@ -397,7 +397,8 @@ def main():
                      for pop in gwas_pops:
                          valid, msg = validate_ld_ref(pop, "1")
                          if not valid:
-                             st.warning(msg)
+                             st.error(f"LD Ref {pop}: {msg}")
+                             validation_passed = False
                          else:
                              st.success(f"LD Ref {pop}: {msg}")
 

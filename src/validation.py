@@ -177,13 +177,69 @@ def validate_phenotype(file_path):
         return False, f"Phenotype Validation Error: {str(e)}", None
 
 
-def validate_ld_ref(pop, chrom):
+def validate_ld_ref(pop, chrom, ld_dir=None):
     """
-    Check if LD reference exists for pop and chrom. (Very basic check).
+    Validate that LD reference files exist for a given population and chromosome.
+
+    PRS-CSx expects the following layout inside ``ld_dir``::
+
+        ld_reference/
+        ├── snpinfo_mult_1kg_hm3          # cross-population SNP info
+        └── ldblk_1kg_{pop}/              # one directory per population
+            ├── ldblk_1kg_chr1.hdf5
+            ├── ldblk_1kg_chr2.hdf5
+            └── ...
+
+    Parameters
+    ----------
+    pop : str
+        Population code (e.g. "EUR", "AFR"). Will be lowercased for the
+        directory lookup.
+    chrom : str | int
+        Chromosome number to check (e.g. "1" or 1).
+    ld_dir : str or None
+        Override the LD reference root directory.  Defaults to
+        ``/app/ld_reference`` when *None* (production / Docker path).
+
+    Returns
+    -------
+    (bool, str)
+        ``(True, message)`` on success, ``(False, message)`` on failure.
     """
-    # Assuming 1KG reference layout
-    ld_dir = f"/app/ld_reference"
-    if not os.path.exists(ld_dir) or not os.listdir(ld_dir):
-         return True, f"Note: Could not verify local LD reference files. Assuming they exist inside container."
-    
-    return True, f"LD Reference check completed."
+    if ld_dir is None:
+        ld_dir = "/app/ld_reference"
+
+    # 1. Root directory must exist
+    if not os.path.exists(ld_dir):
+        return False, f"LD reference directory not found: {ld_dir}"
+
+    # 2. Root directory must not be empty
+    if not os.listdir(ld_dir):
+        return False, f"LD reference directory is empty: {ld_dir}"
+
+    # 3. Cross-population SNP-info file
+    snpinfo = os.path.join(ld_dir, "snpinfo_mult_1kg_hm3")
+    if not os.path.exists(snpinfo):
+        return False, (
+            f"Missing SNP info file: snpinfo_mult_1kg_hm3 in {ld_dir}. "
+            "Download the PRS-CSx reference panel."
+        )
+
+    # 4. Population-specific LD block directory
+    pop_lower = pop.lower()
+    pop_dir = os.path.join(ld_dir, f"ldblk_1kg_{pop_lower}")
+    if not os.path.isdir(pop_dir):
+        return False, (
+            f"Missing LD block directory for population '{pop}': "
+            f"expected {pop_dir}"
+        )
+
+    # 5. Chromosome-specific .hdf5 file
+    chrom_file = os.path.join(pop_dir, f"ldblk_1kg_chr{chrom}.hdf5")
+    if not os.path.isfile(chrom_file):
+        return False, (
+            f"Missing LD block file for {pop} chr{chrom}: "
+            f"expected {chrom_file}"
+        )
+
+    return True, f"LD reference OK for {pop} chr{chrom}."
