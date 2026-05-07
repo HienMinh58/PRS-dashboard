@@ -58,7 +58,8 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
                 f"using `{target_plink}`."
             )
     except Exception as e:
-        st.warning(f"Could not pre-clean target genotype for PRS-CSx: {e}")
+        if hasattr(st, "warning"):
+            st.warning(f"Could not pre-clean target genotype for PRS-CSx: {e}")
     
     cmd = [
         "python", "/app/tools/PRScsx/PRScsx.py",
