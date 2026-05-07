@@ -29,7 +29,16 @@ def render_sidebar():
                 pop = st.selectbox("Population", ["EUR", "AFR", "EAS", "SAS", "AMR", "Mixed"], key=f"pop_{idx}")
                 n_gwas = st.number_input("Sample Size (N)", min_value=1000, value=100000, step=1000, key=f"n_{idx}")
                 gwas_info.append({"file": f, "pop": pop, "n_gwas": n_gwas})
-                
+
+    st.sidebar.divider()
+    st.sidebar.subheader("Quality Control (QC) Options")
+
+    remove_ambiguous = st.sidebar.checkbox(
+        "Remove Ambiguous SNPs (A/T, C/G)",
+        value=True, # Default
+        help="Remove ambiguous SNPs"
+    )
+
     st.sidebar.divider()
     
     st.sidebar.subheader("Target Data (Testing)")
@@ -126,5 +135,6 @@ def render_sidebar():
         "selected_methods": selected_methods,
         "params": params,
         "selected_ml": selected_ml,
-        "is_binary": is_binary
+        "is_binary": is_binary,
+        "remove_ambiguous": remove_ambiguous,
     }

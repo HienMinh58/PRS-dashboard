@@ -36,6 +36,29 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
     
     phi = params.get('phi', '1e-2')
     a = params.get('a', '1.0')
+    chrom = "1"  # Hardcoded for fast testing (Toy data only has Chr 1)
+
+    try:
+        from src.qc import (
+            clean_plink_invalid_alleles,
+            find_invalid_bim_variants,
+        )
+
+        needs_allele_clean = len(find_invalid_bim_variants(target_plink)) > 0
+        if not target_plink.endswith(f".prscsx_chr{chrom}"):
+            clean_prefix = f"{target_plink}.prscsx_chr{chrom}"
+            target_plink, clean_summary = clean_plink_invalid_alleles(
+                target_plink,
+                out_prefix=clean_prefix,
+                keep_chrom=chrom,
+            )
+            st.info(
+                f"Prepared target genotype for PRS-CSx chr{chrom}: "
+                f"removed {clean_summary['num_invalid_bim_variants']} invalid BIM variants; "
+                f"using `{target_plink}`."
+            )
+    except Exception as e:
+        st.warning(f"Could not pre-clean target genotype for PRS-CSx: {e}")
     
     cmd = [
         "python", "/app/tools/PRScsx/PRScsx.py",
@@ -48,7 +71,7 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
         f"--out_name={out_name}",
         f"--phi={phi}",
         f"--a={a}",
-        "--chrom=1"  # Hardcoded for fast testing (Toy data only has Chr 1)
+        f"--chrom={chrom}"
     ]
     
     # Execute with live logs

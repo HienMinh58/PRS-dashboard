@@ -303,47 +303,49 @@ def main():
                 gwas_pops = []
                 gwas_ns = []
                 gwas_snps_all = set()
+                qc_inputs = []
                 
-                st.subheader("Data Validation")
+                st.subheader("Data Validation and QC")
                 validation_passed = True
                 
                 if config["gwas_info"] and len(config["gwas_info"]) > 0:
                     for info in config["gwas_info"]:
-                        f = info["file"]
-                        path = os.path.join(data_dir, f.name)
-                        with open(path, "wb") as out_f:
-                            out_f.write(f.getbuffer())
+                        gwas_file = info["file"]
+                        gwas_path = os.path.join(data_dir, gwas_file.name)
+                        with open(gwas_path, "wb") as out_f:
+                            out_f.write(gwas_file.getbuffer())
                         
-                        with st.spinner(f"Validating GWAS: {f.name}..."):
-                            is_valid, msg, count, processed_path, snps = validate_gwas(path)
+                        with st.spinner(f"Validating GWAS: {gwas_file.name}..."):
+                            is_valid, msg, count, processed_path, snps = validate_gwas(gwas_path)
                         
                         if is_valid:
-                            st.success(f"GWAS '{f.name}' OK: {msg}")
+                            st.success(f"GWAS '{gwas_file.name}' OK: {msg}")
                             gwas_paths.append(processed_path)
                             gwas_pops.append(info["pop"])
                             gwas_ns.append(str(info["n_gwas"]))
                             gwas_snps_all.update(snps)
+                            qc_inputs.append({"path": gwas_path, "name": gwas_file.name})
                         else:
-                            st.error(f"GWAS '{f.name}' Failed: {msg}")
+                            st.error(f"GWAS '{gwas_file.name}' Failed: {msg}")
                             validation_passed = False
                 else:
                     st.error("Please upload at least one GWAS summary statistics file.")
                     st.stop()
-                
+
                 # --- Validate and save target genotype ---
                 target_prefix = "mock_target"
                 if config["target_data"] is not None and config["target_data"] != []:
-                    exts = [f.name.split('.')[-1] for f in config["target_data"]]
+                    exts = [target_file.name.split('.')[-1] for target_file in config["target_data"]]
                     if not all(ext in exts for ext in ['bed', 'bim', 'fam']):
                         st.error("Target Data: Please upload all three PLINK binary files: .bed, .bim, .fam")
                         validation_passed = False
                     else:
-                        for f in config["target_data"]:
-                            path = os.path.join(data_dir, f.name)
-                            with open(path, "wb") as out_f:
-                                out_f.write(f.getbuffer())
+                        for target_file in config["target_data"]:
+                            target_path = os.path.join(data_dir, target_file.name)
+                            with open(target_path, "wb") as out_f:
+                                out_f.write(target_file.getbuffer())
                         
-                        bed_file = [f.name for f in config["target_data"] if f.name.endswith('.bed')][0]
+                        bed_file = [target_file.name for target_file in config["target_data"] if target_file.name.endswith('.bed')][0]
                         target_prefix = os.path.join(data_dir, bed_file.rsplit('.bed', 1)[0])
                         
                         with st.spinner("Validating Target Data..."):
@@ -351,12 +353,81 @@ def main():
                         if is_valid:
                             st.success(msg)
                         else:
-                            st.error(msg)
-                            validation_passed = False
+                            if "invalid/duplicate alleles" in msg:
+                                st.warning(msg)
+                                try:
+                                    import importlib
+                                    import src.qc as qc_module
+
+                                    qc_module = importlib.reload(qc_module)
+
+                                    clean_prefix = f"{target_prefix}.allele_clean_chr1"
+                                    with st.spinner("Cleaning invalid BIM alleles with PLINK2..."):
+                                        target_prefix, clean_summary = qc_module.clean_plink_invalid_alleles(
+                                            target_prefix,
+                                            out_prefix=clean_prefix,
+                                            keep_chrom="1",
+                                        )
+
+                                    st.success(
+                                        f"Removed {clean_summary['num_invalid_bim_variants']} invalid BIM variants "
+                                        f"and kept chromosome 1. "
+                                        f"Using cleaned target prefix: {target_prefix}"
+                                    )
+                                    is_valid, msg = validate_plink(target_prefix, gwas_snps_all)
+                                    if is_valid:
+                                        st.success(msg)
+                                    else:
+                                        st.error(msg)
+                                        validation_passed = False
+                                except Exception as e:
+                                    st.error(f"Automatic PLINK cleaning failed: {e}")
+                                    validation_passed = False
+                            else:
+                                st.error(msg)
+                                validation_passed = False
+
+                        if validation_passed and target_prefix != "mock_target" and not target_prefix.endswith("_chr1"):
+                            try:
+                                import importlib
+                                import src.qc as qc_module
+
+                                qc_module = importlib.reload(qc_module)
+                                chr1_prefix = f"{target_prefix}.chr1"
+                                with st.spinner("Preparing chromosome 1 target data for PRS-CSx..."):
+                                    target_prefix, chr_summary = qc_module.clean_plink_invalid_alleles(
+                                        target_prefix,
+                                        out_prefix=chr1_prefix,
+                                        keep_chrom="1",
+                                    )
+                                st.success(f"Using PRS-CSx chromosome 1 target prefix: {target_prefix}")
+                            except Exception as e:
+                                st.error(f"Preparing chromosome 1 target data failed: {e}")
+                                validation_passed = False
                 else:
                     st.error("Please upload Target Genotype Data (.bed/.bim/.fam).")
                     validation_passed = False
-                
+
+                if target_prefix != "mock_target":
+                    from src.qc import run_qc_v1
+
+                    for qc_input in qc_inputs:
+                        with st.spinner(f"Running QC on {qc_input['name']}..."):
+                            try:
+                                matched_df, summary = run_qc_v1(
+                                    gwas_path=qc_input["path"],
+                                    bim_path_or_prefix=target_prefix,
+                                    remove_ambiguous=config["remove_ambiguous"]
+                                )
+                                st.success(
+                                    f"QC '{qc_input['name']}' OK: "
+                                    f"{summary['num_matched_snps']} matched SNPs, "
+                                    f"{summary.get('num_ambiguous_removed', 0)} ambiguous removed, "
+                                    f"{summary['num_final_snps_after_qc']} final SNPs."
+                                )
+                            except Exception as e:
+                                st.warning(f"QC skipped for {qc_input['name']}: {e}")
+                                
                 # --- Validation data (optional) ---
                 val_prefix = None
                 if config["val_data"] is not None and config["val_data"] != []:
