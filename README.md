@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.png" width="120" alt="PRS Dashboard Icon">
+  <img src="assets/icon_v2.png" width="120" alt="PRS Dashboard Icon">
 </p>
 
 # PRS Dashboard
