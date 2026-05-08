@@ -12,7 +12,7 @@ def _read_plink_score(file_path):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Score file not found: {file_path}")
     
-    df = pd.read_csv(file_path, sep='\s+')
+    df = pd.read_csv(file_path, sep=r'\s+', engine='python')
     # plink2 typically outputs IID and SCORE1_AVG or similar
     score_col = [col for col in df.columns if 'SCORE' in col.upper() or col.upper() == 'PRS']
     if not score_col:
@@ -22,6 +22,30 @@ def _read_plink_score(file_path):
         score_col = score_col[0]
         
     return df[['IID', score_col]]
+
+
+def _normalise_chromosomes(chromosomes):
+    if chromosomes in (None, "", "1"):
+        return ["1"]
+    if chromosomes == "1-22":
+        return [str(chrom) for chrom in range(1, 23)]
+    if isinstance(chromosomes, (list, tuple)):
+        return [str(chrom) for chrom in chromosomes]
+    return [str(chromosomes)]
+
+
+def _plink_chrom_filter(chromosomes):
+    chrom_list = _normalise_chromosomes(chromosomes)
+    if chrom_list == [str(chrom) for chrom in range(1, 23)]:
+        return "autosome", "autosome"
+    return chrom_list[0], f"chr{chrom_list[0]}"
+
+
+def _prscsx_chrom_args(chromosomes):
+    chrom_list = _normalise_chromosomes(chromosomes)
+    if len(chrom_list) == 1:
+        return [f"--chrom={chrom_list[0]}"]
+    return ["--chrom"] + chrom_list
 
 def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix=None, val_pheno=None, val_covar=None, is_binary=False):
     """Run PRS-CSx with robust multi-ancestry support."""
@@ -36,7 +60,9 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
     
     phi = params.get('phi', '1e-2')
     a = params.get('a', '1.0')
-    chrom = "1"  # Hardcoded for fast testing (Toy data only has Chr 1)
+    chromosomes = params.get("chromosomes", "1")
+    chrom_list = _normalise_chromosomes(chromosomes)
+    plink_chrom_filter, plink_chrom_label = _plink_chrom_filter(chromosomes)
 
     try:
         from src.qc import (
@@ -45,15 +71,15 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
         )
 
         needs_allele_clean = len(find_invalid_bim_variants(target_plink)) > 0
-        if not target_plink.endswith(f".prscsx_chr{chrom}"):
-            clean_prefix = f"{target_plink}.prscsx_chr{chrom}"
+        if not target_plink.endswith(f".prscsx_{plink_chrom_label}"):
+            clean_prefix = f"{target_plink}.prscsx_{plink_chrom_label}"
             target_plink, clean_summary = clean_plink_invalid_alleles(
                 target_plink,
                 out_prefix=clean_prefix,
-                keep_chrom=chrom,
+                keep_chrom=plink_chrom_filter,
             )
             st.info(
-                f"Prepared target genotype for PRS-CSx chr{chrom}: "
+                f"Prepared target genotype for PRS-CSx chromosomes {','.join(chrom_list)}: "
                 f"removed {clean_summary['num_invalid_bim_variants']} invalid BIM variants; "
                 f"using `{target_plink}`."
             )
@@ -72,8 +98,7 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
         f"--out_name={out_name}",
         f"--phi={phi}",
         f"--a={a}",
-        f"--chrom={chrom}"
-    ]
+    ] + _prscsx_chrom_args(chromosomes)
     
     # Execute with live logs
     try:
@@ -114,16 +139,16 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
                 raise FileNotFoundError(f"No PRS-CSx posterior files found for {pop}")
             
             # PRS-CSx output has NO header. Format: CHR SNP BP A1 A2 BETA (6 columns, tab-separated)
-            total_snps = 0
-            with open(score_file, 'w') as outfile:
+            import shutil
+            with open(score_file, 'wb') as outfile:
                 for chr_file in chr_files:
                     filepath = os.path.join(out_dir, chr_file)
-                    with open(filepath, 'r') as infile:
-                        for line in infile:
-                            line = line.strip()
-                            if line:
-                                outfile.write(line + '\n')
-                                total_snps += 1
+                    with open(filepath, 'rb') as infile:
+                        shutil.copyfileobj(infile, outfile)
+                        
+            # Fast SNP counting
+            with open(score_file, 'rb') as f:
+                total_snps = sum(1 for _ in f)
             
             st.info(f"Combined {len(chr_files)} chromosome files for {pop}: {total_snps} SNPs total")
             
@@ -164,10 +189,15 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
     
     # Compute combined if validation is provided
     if val_prefix and val_pheno:
+        # Validation dataset provided but it's single ancestry -> bypass regression!
+        if len(gwas_pops) == 1:
+            target_scores['PRS_CSx_combined'] = target_scores[f"PRS_CSx_{gwas_pops[0]}"]
+            return target_scores
+            
         val_scores = score_dataset(val_prefix, "val")
         
         # Read Phenotype
-        pheno_df = pd.read_csv(val_pheno, sep='\s+|,', engine='python')
+        pheno_df = pd.read_csv(val_pheno, sep=r'\s+|,', engine='python')
         if len(pheno_df.columns) < 2:
             raise ValueError("Validation phenotype file must have at least 2 columns: IID and Phenotype")
         # Assume IID is the first column or column named IID
@@ -186,7 +216,7 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
         # Covariates (Optional)
         covar_cols = []
         if val_covar:
-            covar_df = pd.read_csv(val_covar, sep='\s+|,', engine='python')
+            covar_df = pd.read_csv(val_covar, sep=r'\s+|,', engine='python')
             if 'IID' in covar_df.columns:
                 covar_df = covar_df.set_index('IID')
             else:

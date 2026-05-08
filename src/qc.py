@@ -29,7 +29,7 @@ AMBIGUOUS_SNPS = {
 
 def read_gwas_summary_stats(file_path):
     """Read GWAS summary statistics and standardise known PRS columns."""
-    df = pd.read_csv(file_path, sep=None, engine="python")
+    df = pd.read_csv(file_path, sep="\t")
     return standardize_gwas_columns(df)
 
 
@@ -62,8 +62,7 @@ def clean_plink_invalid_alleles(prefix, out_prefix=None, plink_cmd="plink2", kee
     Remove BIM variants with invalid/duplicate alleles using PLINK2.
 
     When ``keep_chrom`` is provided, the output is also restricted to that
-    chromosome. This is useful for PRS-CSx runs that pass ``--chrom=1`` and
-    cannot parse non-numeric BIM chromosomes such as X.
+    chromosome. Pass ``"autosome"`` to keep chromosomes 1-22.
 
     Returns ``(clean_prefix, summary)``. If no invalid variants are found,
     and no chromosome filter is requested, the original prefix is returned and
@@ -96,7 +95,9 @@ def clean_plink_invalid_alleles(prefix, out_prefix=None, plink_cmd="plink2", kee
         exclude_file = f"{clean_prefix}.exclude_snps.txt"
         invalid["SNP"].to_csv(exclude_file, index=False, header=False)
         cmd.extend(["--exclude", exclude_file])
-    if keep_chrom is not None:
+    if keep_chrom == "autosome":
+        cmd.append("--autosome")
+    elif keep_chrom is not None:
         cmd.extend(["--chr", str(keep_chrom)])
     cmd.extend(["--make-bed", "--out", clean_prefix])
 
@@ -132,7 +133,7 @@ def match_gwas_to_bim(gwas_df, bim_df):
     return matched[output_cols + audit_cols]
 
 
-def run_qc_v1(gwas_path, bim_path_or_prefix, remove_ambiguous=True):
+def run_qc_v1(gwas_path, bim_path_or_prefix, remove_ambiguous=True, maf_threshold=0.01):
     """
     Run QC v1: read GWAS, read BIM, match by SNP ID, and return matched data.
 
@@ -153,23 +154,25 @@ def run_qc_v1(gwas_path, bim_path_or_prefix, remove_ambiguous=True):
             )
         )
         # Optimizing code for big dataset
-        matched_df["is_ambiguous"] = [
-            pair in AMBIGUOUS_SNPS
-            for pair in allele_pairs
-        ]
-
-        n_ambiguous_removed = int(
-            matched_df["is_ambiguous"].sum()
+        is_ambiguous = pd.Series(
+            [pair in AMBIGUOUS_SNPS for pair in allele_pairs],
+            index=matched_df.index
         )
+        n_ambiguous_removed = int(is_ambiguous.sum())
 
-        matched_df = matched_df[
-            ~matched_df["is_ambiguous"]
+        matched_df = matched_df.loc[~is_ambiguous].copy()
+
+    n_maf_filtered_snps = 0
+    maf_warning = None
+    if "MAF" in matched_df.columns:
+        initial_len = len(matched_df)
+        matched_df = matched_df.loc[
+            matched_df["MAF"] >= maf_threshold
         ].copy()
+        n_maf_filtered_snps = int(initial_len - len(matched_df))
+    else:
+        maf_warning = "MAF column not found. MAF filtering skipped."
 
-        matched_df.drop(
-            columns=["is_ambiguous"],
-            inplace=True
-        )
     summary = {
         "num_gwas_snps": int(gwas_df["SNP"].nunique()),
         "num_bim_snps": int(bim_df["SNP"].nunique()),
@@ -178,8 +181,12 @@ def run_qc_v1(gwas_path, bim_path_or_prefix, remove_ambiguous=True):
             gwas_df["SNP"].nunique() - num_matched_snps
         ),
         "num_ambiguous_removed": n_ambiguous_removed,
+        "n_maf_filtered_snps": n_maf_filtered_snps,
         "num_final_snps_after_qc": int(len(matched_df)),
     }
+    
+    if maf_warning:
+        summary["warning"] = maf_warning
 
     return matched_df, summary
 

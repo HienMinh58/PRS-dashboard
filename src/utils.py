@@ -38,3 +38,4 @@ def export_to_excel(df):
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Results')
     return output.getvalue()
+

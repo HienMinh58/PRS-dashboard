@@ -39,6 +39,23 @@ def render_sidebar():
         help="Remove ambiguous SNPs"
     )
 
+    maf_threshold = st.sidebar.number_input(
+        "MAF threshold",
+        min_value=0.0,
+        max_value=0.5,
+        value=0.01,
+        step=0.01,
+        format="%.3f",
+        help="Remove SNPs with Minor Allele Frequency below this threshold."
+    )
+
+    chromosomes = st.sidebar.radio(
+        "Chromosomes to run",
+        options=["1", "1-22"],
+        index=0,
+        help="Use chromosome 1 for quick demo runs, or all autosomes (1-22) for full PRS-CSx runs."
+    )
+
     st.sidebar.divider()
     
     st.sidebar.subheader("Target Data (Testing)")
@@ -137,4 +154,6 @@ def render_sidebar():
         "selected_ml": selected_ml,
         "is_binary": is_binary,
         "remove_ambiguous": remove_ambiguous,
+        "maf_threshold": maf_threshold,
+        "chromosomes": chromosomes,
     }

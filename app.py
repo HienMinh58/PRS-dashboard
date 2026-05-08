@@ -411,20 +411,38 @@ def main():
                 if target_prefix != "mock_target":
                     from src.qc import run_qc_v1
 
-                    for qc_input in qc_inputs:
+                    for i, qc_input in enumerate(qc_inputs):
                         with st.spinner(f"Running QC on {qc_input['name']}..."):
                             try:
+                                # Run QC
+                                actual_gwas_path = gwas_paths[i]
                                 matched_df, summary = run_qc_v1(
-                                    gwas_path=qc_input["path"],
+                                    gwas_path=actual_gwas_path,
                                     bim_path_or_prefix=target_prefix,
-                                    remove_ambiguous=config["remove_ambiguous"]
+                                    remove_ambiguous=config.get("remove_ambiguous", True),
+                                    maf_threshold=config.get("maf_threshold", 0.01)
                                 )
-                                st.success(
-                                    f"QC '{qc_input['name']}' OK: "
-                                    f"{summary['num_matched_snps']} matched SNPs, "
-                                    f"{summary.get('num_ambiguous_removed', 0)} ambiguous removed, "
-                                    f"{summary['num_final_snps_after_qc']} final SNPs."
-                                )
+                                
+                                # Show Detailed Summary
+                                st.markdown(f"**QC Summary for {qc_input['name']}**")
+                                st.write(f"- GWAS SNPs: {summary['num_gwas_snps']}")
+                                st.write(f"- BIM SNPs: {summary['num_bim_snps']}")
+                                st.write(f"- Matched SNPs: {summary['num_matched_snps']}")
+                                st.write(f"- Unmatched GWAS SNPs: {summary['num_unmatched_gwas_snps']}")
+                                st.write(f"- Ambiguous SNPs removed: {summary.get('num_ambiguous_removed', 0)}")
+                                st.write(f"- MAF-filtered SNPs: {summary.get('n_maf_filtered_snps', 0)}")
+                                st.write(f"- **Final SNPs used for PRS-CSx:** {summary['num_final_snps_after_qc']}")
+                                
+                                if "warning" in summary:
+                                    st.warning(f"QC Note: {summary['warning']}")
+                                else:
+                                    st.success(f"QC completed successfully.")
+                                    
+                                # Save cleaned GWAS and pass to PRS-CSx
+                                clean_path = actual_gwas_path + ".qc_clean.txt"
+                                matched_df.to_csv(clean_path, sep='\t', index=False)
+                                gwas_paths[i] = clean_path
+                                
                             except Exception as e:
                                 st.warning(f"QC skipped for {qc_input['name']}: {e}")
                                 

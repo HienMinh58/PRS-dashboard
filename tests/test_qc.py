@@ -99,7 +99,9 @@ def test_run_qc_v1_returns_matched_dataframe_and_summary(tmp_path, plink_valid_p
         "num_matched_snps": 2,
         "num_unmatched_gwas_snps": 1,
         "num_ambiguous_removed": 0,
+        "n_maf_filtered_snps": 0,
         "num_final_snps_after_qc": 2,
+        "warning": "MAF column not found. MAF filtering skipped.",
     }
 
 def test_ambiguous_pairs():
@@ -153,3 +155,53 @@ def test_run_qc_no_ambiguous(monkeypatch):
     assert len(result_df) == 3
     assert summary["num_matched_snps"] == 3
     assert summary["num_final_snps_after_qc"] == 3
+
+
+def test_run_qc_maf_filtering(monkeypatch):
+    gwas_df = pd.DataFrame({
+        "SNP": ["rs1", "rs2", "rs3"],
+    })
+    bim_df = pd.DataFrame({
+        "SNP": ["rs1", "rs2", "rs3"],
+    })
+    matched_df = pd.DataFrame({
+        "SNP": ["rs1", "rs2", "rs3"],
+        "A1": ["A", "C", "G"],
+        "A2": ["C", "A", "T"],
+        "MAF": [0.05, 0.005, 0.2],
+    })
+
+    monkeypatch.setattr("src.qc.read_gwas_summary_stats", lambda x: gwas_df)
+    monkeypatch.setattr("src.qc.read_plink_bim", lambda x: bim_df)
+    monkeypatch.setattr("src.qc.match_gwas_to_bim", lambda a, b: matched_df)
+
+    result_df, summary = run_qc_v1("gwas.txt", "bim", maf_threshold=0.01)
+
+    assert len(result_df) == 2
+    assert list(result_df["SNP"]) == ["rs1", "rs3"]
+    assert summary["n_maf_filtered_snps"] == 1
+    assert "warning" not in summary
+
+
+def test_run_qc_no_maf_column(monkeypatch):
+    gwas_df = pd.DataFrame({
+        "SNP": ["rs1", "rs2", "rs3"],
+    })
+    bim_df = pd.DataFrame({
+        "SNP": ["rs1", "rs2", "rs3"],
+    })
+    matched_df = pd.DataFrame({
+        "SNP": ["rs1", "rs2", "rs3"],
+        "A1": ["A", "C", "G"],
+        "A2": ["C", "A", "T"],
+    })
+
+    monkeypatch.setattr("src.qc.read_gwas_summary_stats", lambda x: gwas_df)
+    monkeypatch.setattr("src.qc.read_plink_bim", lambda x: bim_df)
+    monkeypatch.setattr("src.qc.match_gwas_to_bim", lambda a, b: matched_df)
+
+    result_df, summary = run_qc_v1("gwas.txt", "bim", maf_threshold=0.01)
+
+    assert len(result_df) == 3
+    assert summary["n_maf_filtered_snps"] == 0
+    assert summary["warning"] == "MAF column not found. MAF filtering skipped."

@@ -1,101 +1,80 @@
-# PRS-dashboard
+# PRS Dashboard
 
-**Video Demo:** https://github.com/user-attachments/assets/5c0c26ff-106b-4961-8565-99df306ef613
+A powerful, user-friendly web interface for Polygenic Risk Score (PRS) analysis and Machine Learning evaluation.
 
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.20%2B-FF4B4B?logo=streamlit&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)
+![PRS-CSx](https://img.shields.io/badge/Method-PRS--CSx-orange)
+![Status](https://img.shields.io/badge/Status-Active-success)
 
 ## Overview
-PRS-dashboard is a functional Streamlit prototype for PRS workflow testing designed for bioinformatics and genomic researchers. It provides an intuitive interface for calculating and visualizing Polygenic Risk Scores (PRS) using state-of-the-art single and multi-ancestry methods, alongside training Machine Learning predictors (SVM, Random Forest, Logistic/Linear Regression) on the resulting genetic risk scores.
 
-> **⚠️ Disclaimer:** This application is strictly intended for **research and educational purposes only**. It is not designed, validated, or approved for medical diagnosis, clinical decision-making, or providing health-related advice.
+### The Problem
+Polygenic Risk Score (PRS) analysis is a cornerstone of modern genomic research, yet the barrier to entry remains high. Most state-of-the-art tools require complex manual setups, including:
+- Configuring intricate command-line environments.
+- Manually managing GWAS summary statistics and large PLINK genotype files.
+- Handling diverse LD reference panels.
+- Performing multi-step Quality Control (QC) filtering and data alignment.
 
-## Main Features
-- **Multi-Ancestry & Single-Ancestry Integration:** Seamlessly calculate PRS using advanced statistical tools like PRS-CSx.
-- **Dynamic File Processing:** Automated parsing, validation, and SNP matching across input Summary Statistics (GWAS), target Genotypes, and Reference LD panels.
-- **Machine Learning Predictors:** Train and evaluate custom predictive models (e.g., Logistic Regression, Random Forest, SVM) using standardized PRS outputs combined with covariates.
-- **Interactive Visualizations:** View interactive distribution plots, ROC curves, and dynamic data tables natively within the dashboard.
-- **Containerized Environment:** Fully Dockerized to abstract away complex bioinformatics library dependencies (e.g., R, PLINK2, MCMC dependencies).
+### The Solution
+The **PRS Dashboard** simplifies this entire workflow into a streamlined, browser-based experience. Built with Streamlit and containerized with Docker, it provides researchers and students with a professional interface to configure, execute, and visualize PRS pipelines without the CLI headache.
 
-## Tech Stack
-- **Frontend/UI:** Python (Streamlit), Plotly, Pandas
-- **Backend/Bioinformatics:** Python, R, PLINK 2.0
-- **Machine Learning:** scikit-learn
-- **Infrastructure:** Docker, Docker Compose
+## Features
 
-## Folder Structure
-```text
-.
-├── .dockerignore          # Docker build exclusion list
-├── .gitignore             # Git tracking exclusion list
-├── Dockerfile             # Docker image build instructions
-├── README.md              # Project documentation
-├── app.py                 # Main Streamlit application entry point
-├── docker-compose.yml     # Orchestration for local development
-├── requirements.txt       # Python package dependencies
-├── src/                   # Core application modules
-│   ├── ml_models.py       # Scikit-learn training and evaluation logic
-│   ├── prs_methods.py     # Subprocess wrappers for bioinformatics tools
-│   └── ui.py              # Streamlit UI component renderers
-```
-*(Note: The `data/`, `ld_reference/`, and `results/` directories are ignored by git to protect sensitive data but are required for execution).*
+- **📊 Comprehensive GWAS Support:** Easy upload and validation of GWAS summary statistics with automated parsing.
+- **🧬 PLINK Integration:** Full support for target genotype files (`.bed`, `.bim`, `.fam`) with automatic SNP matching.
+- **🌍 Multi-Ancestry Workflows:** Support for both single-ancestry and complex multi-ancestry (PRS-CSx) configurations.
+- **🛡️ Quality Control Pipeline:** Automated QC filtering, including ambiguous SNP removal and MAF thresholding.
+- **🧪 Validation & Evaluation:** Optional upload for validation phenotypes and covariates to test score performance.
+- **🤖 ML Evaluation Pipeline:** Integrated Machine Learning module (SVM, Random Forest, Regression) to evaluate PRS predictive power.
+- **🐳 Reproducible Setup:** Entirely Docker-based environment ensuring consistency across different operating systems.
 
-## Setup Instructions
+## Demo
+
+<!-- Add a screenshot or demo GIF here -->
+![PRS Dashboard Demo](assets/demo.gif)
+
+> [!TIP]
+> **Video Walkthrough:** Check out our [video demonstration](https://github.com/user-attachments/assets/5c0c26ff-106b-4961-8565-99df306ef613) to see the dashboard in action!
+
+---
+
+## Getting Started
 
 ### Prerequisites
-- [Docker Desktop](https://docs.docker.com/get-docker/) installed and running.
-- [Docker Compose](https://docs.docker.com/compose/install/) available.
+- [Docker](https://www.docker.com/get-started) and [Docker Compose](https://docs.docker.com/compose/install/)
 
-### Required Input Data
+### Installation
 
-**1. GWAS & Genotype Data**
-- **For Normal Users:** You do not need to manually place files in the `data/` directory. You can upload GWAS Summary Statistics, Target Genotype data (PLINK `.bed`, `.bim`, `.fam`), and Phenotype/Covariate files directly through the **Dashboard UI**. Uploaded files are automatically saved to the internal `/app/data` directory where the pipeline processes them.
-- **For Developers / Large Datasets:** If your files are too large for the Streamlit file uploader, or if you are running local development tests, you can manually place them in the local `data/` directory. This directory is mounted to `/app/data` inside the Docker container.
-
-**2. LD Reference Panels**
-- You **must** manually place your large Linkage Disequilibrium (LD) Reference panels (e.g., 1000 Genomes phase 3 HDF5 files for PRS-CSx) in the local `ld_reference/` directory. This directory is mounted to `/app/ld_reference` inside the Docker container. These files are typically too large to be uploaded via the web UI.
-
-> **🔒 Security Note:** Never commit `.env` files, API keys, credentials, real genetic data, GWAS summary stats, or private datasets to version control. These are strictly ignored via `.gitignore`.
-
-### How to Run Locally
-
-1. **Clone the repository:**
+1. **Clone the repository**
    ```bash
    git clone https://github.com/HienMinh58/PRS-dashboard.git
    cd PRS-dashboard
    ```
 
-2. **Prepare your reference data:**
-   Ensure your local `ld_reference/` folder contains the required LD reference panels. (GWAS and Genotype data can be uploaded later via the UI).
+2. **Prepare Reference Data**
+   Place your LD reference panels in the `ld_reference/` directory (e.g., 1000 Genomes HDF5 files).
 
-3. **Build the Docker container:**
+3. **Launch with Docker**
    ```bash
-   docker-compose build
+   docker-compose up --build
    ```
 
-4. **Start the application:**
-   ```bash
-   docker-compose up -d
-   ```
+4. **Access the Dashboard**
+   Open [http://localhost:8501](http://localhost:8501) in your browser.
 
-5. **Access the Dashboard:**
-   Open your browser and navigate to [http://localhost:8501](http://localhost:8501).
+## Project Structure
 
-6. **Stop the Application:**
-   ```bash
-   docker-compose down
-   ```
-
-## Example Commands inside Container (For Debugging)
-If you need to manually inspect or run the underlying tools within the container:
-```bash
-docker exec -it prs_dashboard /bin/bash
-# Example manual PRS-CSx run
-python /app/tools/PRScsx/PRScsx.py --ref_dir=/app/ld_reference --bim_prefix=/app/data/YOUR_TARGET --sst_file=/app/data/YOUR_GWAS.assoc --n_gwas=100000 --pop=EUR --out_dir=/app/results/prscsx --out_name=test --phi=1e-2 --a=1.0 --chrom=22
+```text
+.
+├── app.py                 # Streamlit application entry point
+├── src/                   # Core logic (QC, PRS methods, ML)
+├── ld_reference/          # LD Reference panels (Local storage)
+├── data/                  # Input datasets (GWAS, Genotypes)
+├── results/               # Output scores and reports
+└── Dockerfile             # Container configuration
 ```
 
-## Current Limitations
-
-- The current version is a functional research prototype and has not been biologically or clinically validated.
-- Current testing was performed using public PRS tutorial data.
-- Some workflows may run chromosome 1 only for faster demonstration unless configured otherwise.
-- Predictive performance metrics should be interpreted as functional testing results, not clinical evidence.
-- Some PRS methods are placeholders or disabled until full real-mode implementations are added.
+---
+*Developed for research and educational purposes. Designed for bioinformatics students and genomic researchers.*
