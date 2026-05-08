@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.png" width="120" alt="PRS Dashboard Icon">
+</p>
+
 # PRS Dashboard
 
 A powerful, user-friendly web interface for Polygenic Risk Score (PRS) analysis and Machine Learning evaluation.
