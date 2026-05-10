@@ -4,8 +4,22 @@ import numpy as np
 
 def validate_gwas(file_path):
     """
-    Validates and standardizes GWAS summary statistics.
-    Returns: (bool, str, int, str, set) -> (is_valid, message, num_snps, processed_file_path, snps_set)
+    Validates and standardises GWAS summary statistics.
+
+    Checks for required columns (SNP, A1, A2, P, and BETA/OR), performs basic
+    QC (removes missing values, filters P-values, cleans alleles, removes
+    ambiguous SNPs and duplicates), and saves a standardised version of the file.
+
+    Args:
+        file_path (str): Path to the raw GWAS file.
+
+    Returns:
+        tuple: (is_valid, message, num_snps, processed_file_path, snps_set)
+            is_valid (bool): True if the file passed validation.
+            message (str): Diagnostic message or summary of results.
+            num_snps (int): Count of valid SNPs remaining after cleaning.
+            processed_file_path (str): Path to the saved standardised GWAS file.
+            snps_set (set): A set containing the unique SNP IDs.
     """
     try:
         # 1. Read file
@@ -109,7 +123,20 @@ def validate_gwas(file_path):
 
 def validate_plink(prefix, gwas_snps=None):
     """
-    Validates PLINK target data.
+    Validates the existence and basic integrity of PLINK binary files.
+
+    Checks for the presence of .bed, .bim, and .fam files, ensures the BIM
+    file has correct columns, and verifies that alleles are valid (A, C, G, T).
+    Optionally checks for SNP overlap with a provided GWAS set.
+
+    Args:
+        prefix (str): Prefix for the PLINK files.
+        gwas_snps (set, optional): Set of SNP IDs from GWAS to check overlap.
+
+    Returns:
+        tuple: (is_valid, message)
+            is_valid (bool): True if the PLINK data is valid.
+            message (str): Diagnostic message or overlap warning.
     """
     try:
         bed = f"{prefix}.bed"
@@ -153,8 +180,19 @@ def validate_plink(prefix, gwas_snps=None):
 
 def validate_phenotype(file_path):
     """
-    Validates ML Phenotype file.
-    Returns: df (standardized with Sample_ID and PHENO)
+    Validates and standardises a phenotype file for ML analysis.
+
+    Expects at least two columns: an ID column (IID or FID/IID) and a trait column.
+    Standardises columns to 'Sample_ID' and 'PHENO'.
+
+    Args:
+        file_path (str): Path to the phenotype file.
+
+    Returns:
+        tuple: (is_valid, message, dataframe)
+            is_valid (bool): True if the file is valid.
+            message (str): Summary message.
+            dataframe (pd.DataFrame): Standardised DataFrame or None if invalid.
     """
     try:
         df = pd.read_csv(file_path, sep=None, engine='python')

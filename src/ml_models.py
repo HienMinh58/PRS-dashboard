@@ -8,10 +8,25 @@ from sklearn.metrics import r2_score, roc_auc_score
 
 def train_ml_models(X, y, selected_models, is_binary=False, sample_ids=None):
     """
-    Trains selected machine learning models using PRS scores as features.
-    X: DataFrame of PRS scores
-    y: Series/Array of phenotypes
-    sample_ids: Optional array of sample IDs to split alongside X and y
+    Trains and evaluates machine learning models using PRS scores as features.
+
+    Supports SVM, GLM (Logistic/Linear Regression), and Random Forest. 
+    Performs data splitting (train/test), feature scaling, model training,
+    and calculates performance metrics (AUC for binary, R2 for continuous).
+
+    Args:
+        X (pd.DataFrame): PRS scores for each method (features).
+        y (pd.Series/np.ndarray): Phenotype values (target).
+        selected_models (list): List of model names to train (e.g., ["SVM", "GLM"]).
+        is_binary (bool): Whether the trait is binary (affects model choice).
+        sample_ids (array-like, optional): Sample IDs corresponding to X and y.
+
+    Returns:
+        tuple: (results_df, predictions_dict, y_test, id_test)
+            results_df (pd.DataFrame): Summary of model scores and types.
+            predictions_dict (dict): Predicted values/probabilities for each model.
+            y_test (array-like): Ground truth values for the test set.
+            id_test (array-like): Sample IDs for the test set.
     """
     results = {}
     predictions = {}

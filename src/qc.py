@@ -28,20 +28,44 @@ AMBIGUOUS_SNPS = {
 }
 
 def read_gwas_summary_stats(file_path):
-    """Read GWAS summary statistics and standardise known PRS columns."""
+    """
+    Reads and standardises a GWAS summary statistics file.
+
+    Args:
+        file_path (str): Path to the GWAS file.
+
+    Returns:
+        pd.DataFrame: A standardised DataFrame with recognised columns (SNP, CHR, BP, A1, A2, etc.).
+    """
     df = pd.read_csv(file_path, sep="\t")
     return standardize_gwas_columns(df)
 
 
 def read_plink_bim(bim_path_or_prefix):
-    """Read a PLINK .bim file and return standard BIM columns."""
+    """
+    Reads a PLINK .bim file.
+
+    Args:
+        bim_path_or_prefix (str): Path to the .bim file or the PLINK prefix.
+
+    Returns:
+        pd.DataFrame: A DataFrame with standard BIM columns (CHR, SNP, CM, BP, A1, A2).
+    """
     bim_path = _resolve_bim_path(bim_path_or_prefix)
     df = pd.read_csv(bim_path, sep=r"\s+", header=None, names=BIM_COLUMNS)
     return _clean_variant_columns(df)
 
 
 def find_invalid_bim_variants(bim_path_or_prefix):
-    """Return BIM rows with invalid, missing, or duplicate alleles."""
+    """
+    Identifies variants in a BIM file with invalid, missing, or duplicate alleles.
+
+    Args:
+        bim_path_or_prefix (str): Path to the .bim file or the PLINK prefix.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing only the invalid variant rows.
+    """
     bim_path = _resolve_bim_path(bim_path_or_prefix)
     df = pd.read_csv(bim_path, sep=r"\s+", header=None, names=BIM_COLUMNS)
     a1 = df["A1"].astype(str).str.upper()
@@ -51,7 +75,15 @@ def find_invalid_bim_variants(bim_path_or_prefix):
 
 
 def bim_has_non_numeric_chromosomes(bim_path_or_prefix):
-    """Return True when BIM chromosome values include non-numeric labels like X."""
+    """
+    Checks if a BIM file contains non-numeric chromosome identifiers (e.g., 'X', 'Y', 'MT').
+
+    Args:
+        bim_path_or_prefix (str): Path to the .bim file or the PLINK prefix.
+
+    Returns:
+        bool: True if non-numeric chromosomes are present, False otherwise.
+    """
     bim_path = _resolve_bim_path(bim_path_or_prefix)
     df = pd.read_csv(bim_path, sep=r"\s+", header=None, names=BIM_COLUMNS, usecols=[0])
     return pd.to_numeric(df["CHR"], errors="coerce").isna().any()
@@ -59,14 +91,18 @@ def bim_has_non_numeric_chromosomes(bim_path_or_prefix):
 
 def clean_plink_invalid_alleles(prefix, out_prefix=None, plink_cmd="plink2", keep_chrom=None):
     """
-    Remove BIM variants with invalid/duplicate alleles using PLINK2.
+    Removes variants with invalid/duplicate alleles from PLINK binary files.
 
-    When ``keep_chrom`` is provided, the output is also restricted to that
-    chromosome. Pass ``"autosome"`` to keep chromosomes 1-22.
+    Args:
+        prefix (str): Input PLINK file prefix.
+        out_prefix (str, optional): Output PLINK file prefix. Defaults to prefix.allele_clean.
+        plink_cmd (str): Command to run PLINK (default 'plink2').
+        keep_chrom (str/int, optional): If provided, filters to this chromosome (or "autosome").
 
-    Returns ``(clean_prefix, summary)``. If no invalid variants are found,
-    and no chromosome filter is requested, the original prefix is returned and
-    no PLINK command is run.
+    Returns:
+        tuple: (clean_prefix, summary_dict)
+            clean_prefix is the prefix of the resulting files.
+            summary_dict contains metadata about the operation.
     """
     invalid = find_invalid_bim_variants(prefix)
     summary = {
@@ -114,7 +150,16 @@ def clean_plink_invalid_alleles(prefix, out_prefix=None, plink_cmd="plink2", kee
 
 
 def match_gwas_to_bim(gwas_df, bim_df):
-    """Match standardised GWAS and BIM variants by SNP ID only."""
+    """
+    Matches GWAS summary statistics to BIM variants by SNP ID.
+
+    Args:
+        gwas_df (pd.DataFrame): Standardised GWAS DataFrame.
+        bim_df (pd.DataFrame): Standardised BIM DataFrame.
+
+    Returns:
+        pd.DataFrame: Merged DataFrame containing only variants found in both.
+    """
     gwas_clean = _clean_gwas_frame(gwas_df)
     bim_clean = _clean_variant_columns(bim_df).drop_duplicates(subset=["SNP"])
 
@@ -135,10 +180,24 @@ def match_gwas_to_bim(gwas_df, bim_df):
 
 def run_qc_v1(gwas_path, bim_path_or_prefix, remove_ambiguous=True, maf_threshold=0.01):
     """
-    Run QC v1: read GWAS, read BIM, match by SNP ID, and return matched data.
+    Executes the standard Quality Control (QC) v1 pipeline.
 
-    This skeleton intentionally does not perform liftover, strand flipping,
-    allele harmonisation, or LD computation.
+    The pipeline includes:
+    1. Standardising GWAS columns.
+    2. Matching GWAS variants to the target BIM file.
+    3. Filtering out ambiguous SNPs (optional).
+    4. Filtering SNPs by Minor Allele Frequency (MAF).
+
+    Args:
+        gwas_path (str): Path to GWAS file.
+        bim_path_or_prefix (str): Target genotype path/prefix.
+        remove_ambiguous (bool): Whether to remove A/T and C/G SNPs.
+        maf_threshold (float): MAF threshold for filtering.
+
+    Returns:
+        tuple: (matched_df, summary_dict)
+            matched_df is the clean DataFrame after QC.
+            summary_dict contains counts of filtered/remaining SNPs.
     """
     gwas_df = read_gwas_summary_stats(gwas_path)
     bim_df = read_plink_bim(bim_path_or_prefix)

@@ -8,7 +8,18 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
 def _read_plink_score(file_path):
-    """Reads PLINK .sscore or .profile output and returns IID and scores."""
+    """
+    Reads PLINK .sscore or .profile output files.
+
+    Args:
+        file_path (str): Path to the PLINK output file.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing 'IID' and the detected score column.
+
+    Raises:
+        FileNotFoundError: If the specified file does not exist.
+    """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Score file not found: {file_path}")
     
@@ -25,6 +36,16 @@ def _read_plink_score(file_path):
 
 
 def _normalise_chromosomes(chromosomes):
+    """
+    Normalises chromosome input into a list of strings.
+
+    Args:
+        chromosomes (Union[str, list, int]): Chromosome(s) to include. 
+            Can be "1", "1-22", or a list of strings/ints.
+
+    Returns:
+        list: A list of chromosome strings (e.g., ["1", "2", ...]).
+    """
     if chromosomes in (None, "", "1"):
         return ["1"]
     if chromosomes == "1-22":
@@ -35,6 +56,16 @@ def _normalise_chromosomes(chromosomes):
 
 
 def _plink_chrom_filter(chromosomes):
+    """
+    Generates PLINK-style chromosome filter arguments.
+
+    Args:
+        chromosomes (Union[str, list]): Input chromosomes.
+
+    Returns:
+        tuple: (plink_filter_val, label) 
+            e.g., ("autosome", "autosome") or ("1", "chr1").
+    """
     chrom_list = _normalise_chromosomes(chromosomes)
     if chrom_list == [str(chrom) for chrom in range(1, 23)]:
         return "autosome", "autosome"
@@ -42,13 +73,45 @@ def _plink_chrom_filter(chromosomes):
 
 
 def _prscsx_chrom_args(chromosomes):
+    """
+    Generates PRS-CSx specific chromosome command line arguments.
+
+    Args:
+        chromosomes (Union[str, list]): Input chromosomes.
+
+    Returns:
+        list: List of command line arguments for PRScsx.py.
+    """
     chrom_list = _normalise_chromosomes(chromosomes)
     if len(chrom_list) == 1:
         return [f"--chrom={chrom_list[0]}"]
     return ["--chrom"] + chrom_list
 
 def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix=None, val_pheno=None, val_covar=None, is_binary=False):
-    """Run PRS-CSx with robust multi-ancestry support."""
+    """
+    Executes the PRS-CSx pipeline for multi-ancestry risk scoring.
+
+    This function performs the following steps:
+    1. Cleans the target genotype BIM file for invalid alleles.
+    2. Runs the PRS-CSx Python tool to estimate posterior SNP effects.
+    3. Combines per-chromosome posterior effect files.
+    4. Calculates PRS for the target dataset using PLINK2.
+    5. (Optional) Fits a multi-ancestry meta-score using a validation dataset.
+
+    Args:
+        gwas_files (list): Paths to GWAS summary statistics files.
+        gwas_pops (list): Ancestry labels corresponding to each GWAS file.
+        gwas_ns (list): Sample sizes for each GWAS dataset.
+        target_plink (str): Prefix of the target PLINK binary files.
+        params (dict): Configuration parameters (phi, a, chromosomes).
+        val_prefix (str, optional): Prefix for validation PLINK files.
+        val_pheno (str, optional): Path to validation phenotype file.
+        val_covar (str, optional): Path to validation covariates file.
+        is_binary (bool): Whether the trait is binary (affects regression type).
+
+    Returns:
+        pd.DataFrame: DataFrame containing Sample_ID and calculated PRS scores.
+    """
     out_dir = "/app/results/prscsx"
     
     # Clean old results to avoid stale data
@@ -254,12 +317,33 @@ def run_prs_csx(gwas_files, gwas_pops, gwas_ns, target_plink, params, val_prefix
     return target_scores
 
 def run_tl_prs(gwas_files, target_plink, params):
+    """
+    Executes the Transfer Learning PRS (TL-PRS) pipeline.
+
+    Note: This is currently a placeholder for the TL-PRS integration.
+    """
     raise NotImplementedError("TL-PRS mock implementation disabled in real mode.")
 
 def run_ct_sleb(gwas_files, target_plink, params):
+    """
+    Executes the CT-SLEB (Clumping and Thresholding with SLEB) pipeline.
+
+    Note: This is currently a placeholder for the CT-SLEB integration.
+    """
     raise NotImplementedError("CT-SLEB mock implementation disabled in real mode.")
 
 def run_prosper(gwas_files, target_plink, params):
+    """
+    Executes the PROSPER pipeline for multi-ancestry PRS.
+
+    Args:
+        gwas_files (list): Paths to GWAS files.
+        target_plink (str): Target PLINK prefix.
+        params (dict): Parameters including 'alpha'.
+
+    Returns:
+        pd.DataFrame: Calculated scores.
+    """
     # PROSPER has a real implementation, keeping it minimal to not break it
     out_dir = "/app/results/prosper"
     os.makedirs(out_dir, exist_ok=True)
@@ -278,9 +362,33 @@ def run_prosper(gwas_files, target_plink, params):
     return _read_plink_score(out_file)
 
 def run_me_bayes_sl(gwas_files, target_plink, params):
+    """
+    Executes the ME-BAYES SL pipeline.
+
+    Note: This is currently a placeholder for the ME-BAYES SL integration.
+    """
     raise NotImplementedError("ME-BAYES SL mock implementation disabled in real mode.")
 
 def execute_prs_pipeline(methods, mode, gwas_files, gwas_pops, gwas_ns, target_file, params_dict, val_prefix=None, val_pheno=None, val_covar=None, is_binary=False):
+    """
+    Orchestrates the execution of multiple PRS methods and merges results.
+
+    Args:
+        methods (list): List of methods to run (e.g., ["PRS-CSx", "PROSPER"]).
+        mode (str): "Single Ancestry" or "Multi Ancestry".
+        gwas_files (list): Paths to GWAS files.
+        gwas_pops (list): Ancestry labels.
+        gwas_ns (list): Sample sizes.
+        target_file (str): Prefix of target PLINK files.
+        params_dict (dict): Dictionary of parameters keyed by method name.
+        val_prefix (str, optional): Validation genotype prefix.
+        val_pheno (str, optional): Validation phenotype path.
+        val_covar (str, optional): Validation covariate path.
+        is_binary (bool): True if phenotype is binary.
+
+    Returns:
+        pd.DataFrame: Merged DataFrame with Sample_ID and all calculated scores.
+    """
     results_df = None
     total_methods = len(methods)
     progress_bar = st.progress(0)
