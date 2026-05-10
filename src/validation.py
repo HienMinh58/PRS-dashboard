@@ -44,17 +44,23 @@ def validate_gwas(file_path):
             
         beta_col = next((c for c in ['BETA', 'B'] if c in cols), None)
         or_col = next((c for c in ['OR', 'ODDS_RATIO'] if c in cols), None)
+        chr_col = next((c for c in ['CHR', 'CHROM', 'CHROMOSOME'] if c in cols), None)
+        bp_col = next((c for c in ['BP', 'POS', 'POSITION'] if c in cols), None)
         
         if not beta_col and not or_col:
             return False, "Missing effect size column. Expected BETA or OR.", 0, None, set()
             
         # Rename core columns
-        df = df.rename(columns={
+        rename_dict = {
             cols[snp_col]: 'SNP',
             cols[a1_col]: 'A1',
             cols[a2_col]: 'A2',
             cols[p_col]: 'P'
-        })
+        }
+        if chr_col: rename_dict[cols[chr_col]] = 'CHR'
+        if bp_col: rename_dict[cols[bp_col]] = 'BP'
+        
+        df = df.rename(columns=rename_dict)
         
         # 3. Handle BETA / OR
         if beta_col:
@@ -109,7 +115,14 @@ def validate_gwas(file_path):
             
         # 5. Save standard format
         processed_path = os.path.join(os.path.dirname(file_path), f"processed_{os.path.basename(file_path)}")
-        final_df = df[['SNP', 'A1', 'A2', 'BETA', 'P']]
+        
+        final_cols = ['SNP', 'A1', 'A2', 'BETA', 'P']
+        if 'CHR' in df.columns: final_cols.append('CHR')
+        if 'BP' in df.columns: final_cols.append('BP')
+        if info_col: final_cols.append(cols[info_col])
+        if maf_col: final_cols.append(cols[maf_col])
+        
+        final_df = df[final_cols]
         final_df.to_csv(processed_path, sep='\t', index=False)
         
         final_count = len(final_df)

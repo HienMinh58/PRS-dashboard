@@ -446,6 +446,32 @@ def main():
                             except Exception as e:
                                 st.warning(f"QC skipped for {qc_input['name']}: {e}")
                                 
+                # --- Compute LD from target genotype data (Advanced Option) ---
+                if target_prefix != "mock_target" and config.get("compute_target_ld"):
+                    st.markdown("**Target LD Computation**")
+                    st.warning("Note: This target-computed LD report is not yet used as the PRS-CSx LD reference.")
+                    st.warning("Small target sample sizes may produce unstable LD estimates.")
+                    with st.spinner("Computing LD statistics from target data using PLINK..."):
+                        from src.ld_compute import compute_ld_from_target
+                        ld_summary = compute_ld_from_target(
+                            bfile_prefix=target_prefix,
+                            chromosomes=config.get("chromosomes", "1"),
+                            window_kb=config.get("ld_window_kb", 1000),
+                            r2_threshold=config.get("ld_r2_thresh", 0.1),
+                            out_dir=config.get("ld_out_dir", "/app/results/ld_target/")
+                        )
+                        
+                        if ld_summary["success"]:
+                            st.success("Target LD computation completed successfully.")
+                            st.write(f"- **Target Prefix:** `{ld_summary['target_prefix']}`")
+                            st.write(f"- **Chromosomes:** {', '.join(ld_summary['chromosomes'])}")
+                            st.write(f"- **Window Size:** {ld_summary['window_kb']} kb")
+                            st.write(f"- **R2 Threshold:** {ld_summary['r2_threshold']}")
+                            for out_file in ld_summary['out_files']:
+                                st.write(f"- **Output File:** `{out_file}`")
+                        else:
+                            st.error(f"Target LD computation failed: {ld_summary['error']}")
+                            
                 # --- Validation data (optional) ---
                 val_prefix = None
                 if config["val_data"] is not None and config["val_data"] != []:

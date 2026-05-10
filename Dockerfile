@@ -28,7 +28,6 @@ RUN curl -fSL https://s3.amazonaws.com/plink2-assets/alpha7/plink2_linux_x86_64_
 # This ensures build reproducibility and protects against malicious upstream commits.
 # NOTE: Replace the PLACEHOLDER_COMMIT_HASH with specific stable 40-character SHAs.
 RUN mkdir -p /app/tools && cd /app/tools && \
-    git clone https://github.com/getian107/PRScsx.git && cd PRScsx && git checkout PLACEHOLDER_COMMIT_HASH || true && cd .. && \
     git clone https://github.com/andrewhaoyu/CTSLEB.git && cd CTSLEB && git checkout PLACEHOLDER_COMMIT_HASH || true && cd .. && \
     git clone https://github.com/Jingning-Zhang/PROSPER.git && cd PROSPER && git checkout PLACEHOLDER_COMMIT_HASH || true && cd .. && \
     git clone https://github.com/ZhangchenZhao/TLPRS.git && cd TLPRS && git checkout PLACEHOLDER_COMMIT_HASH || true && cd .. && \
@@ -64,6 +63,8 @@ WORKDIR /app
 # Copy binaries and tools from the builder stage
 COPY --from=builder /usr/local/bin/plink2 /usr/local/bin/plink2
 COPY --from=builder /app/tools /app/tools
+# COPY local PRScsx into the image (will be overridden by volume in dev, but good for production image)
+COPY tools/PRScsx /app/tools/PRScsx
 
 COPY requirements.txt /app/
 

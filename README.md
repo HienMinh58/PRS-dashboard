@@ -34,6 +34,12 @@ The **PRS Dashboard** simplifies this entire workflow into a streamlined, browse
 - **🤖 ML Evaluation Pipeline:** Integrated Machine Learning module (SVM, Random Forest, Regression) to evaluate PRS predictive power.
 - **🐳 Reproducible Setup:** Entirely Docker-based environment ensuring consistency across different operating systems.
 
+## 🚀 Recent Optimizations & Updates
+
+- **⚡ High-Performance MCMC:** Optimized core PRS-CSx MCMC iterations by replacing standard Python sum functions with NumPy vectorized operations (`np.sum`), significantly reducing computation time during posterior estimation.
+- **🧬 Target-Based LD Computation (Beta):** Integrated local LD computation directly from user-provided target genotype data using PLINK2, providing more flexibility beyond pre-specified reference panels.
+- **🛠️ Development Workflow:** Improved Docker configuration with local tool mounting for seamless development and live-code optimization of core algorithms.
+
 ## Demo
 
 <!-- Add a screenshot or demo GIF here -->

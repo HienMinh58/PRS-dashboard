@@ -171,11 +171,18 @@ def match_gwas_to_bim(gwas_df, bim_df):
         suffixes=("", "_BIM"),
     )
 
-    output_cols = CORE_GWAS_COLUMNS + [
-        col for col in OPTIONAL_GWAS_COLUMNS if col in matched.columns
-    ]
+    # Force PRS-CSx compatible column order: SNP, A1, A2, BETA/OR, P/SE
+    required_first = ["SNP", "A1", "A2"]
+    if "BETA" in matched.columns:
+        required_first.append("BETA")
+    if "P" in matched.columns:
+        required_first.append("P")
+        
+    other_cols = [c for c in CORE_GWAS_COLUMNS + OPTIONAL_GWAS_COLUMNS 
+                  if c in matched.columns and c not in required_first]
+    
     audit_cols = ["CHR_BIM", "BP_BIM", "A1_BIM", "A2_BIM"]
-    return matched[output_cols + audit_cols]
+    return matched[required_first + other_cols + audit_cols]
 
 
 def run_qc_v1(gwas_path, bim_path_or_prefix, remove_ambiguous=True, maf_threshold=0.01):

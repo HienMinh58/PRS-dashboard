@@ -58,6 +58,18 @@ def render_sidebar():
 
     st.sidebar.divider()
     
+    with st.sidebar.expander("Advanced LD Options"):
+        compute_target_ld = st.checkbox(
+            "Compute LD from target genotype data",
+            value=False,
+            help="Computes LD directly from uploaded target data. Not yet used for PRS-CSx reference."
+        )
+        ld_window_kb = st.number_input("LD window size (kb)", min_value=1, value=1000, step=100)
+        ld_r2_thresh = st.number_input("LD r2 threshold", min_value=0.0, max_value=1.0, value=0.1, step=0.01)
+        ld_out_dir = st.text_input("LD Output Directory", value="/app/results/ld_target/")
+        
+    st.sidebar.divider()
+    
     st.sidebar.subheader("Target Data (Testing)")
     target_data = st.sidebar.file_uploader(
         "Upload Target Genotype Data (.bed/.bim/.fam)", 
@@ -156,4 +168,8 @@ def render_sidebar():
         "remove_ambiguous": remove_ambiguous,
         "maf_threshold": maf_threshold,
         "chromosomes": chromosomes,
+        "compute_target_ld": compute_target_ld,
+        "ld_window_kb": ld_window_kb,
+        "ld_r2_thresh": ld_r2_thresh,
+        "ld_out_dir": ld_out_dir,
     }

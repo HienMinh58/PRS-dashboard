@@ -2,6 +2,7 @@ services:
   prs_dashboard:
     build: .
     container_name: prs_dashboard
+    user: "root"
     ports:
       - "8501:8501"
     volumes:
@@ -11,6 +12,7 @@ services:
       # Optionally mount source code for live-reloading during development
       - ./src:/app/src
       - ./app.py:/app/app.py
+      - ./tools/PRScsx:/app/tools/PRScsx
     environment:
       - STREAMLIT_SERVER_PORT=8501
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
